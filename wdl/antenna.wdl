@@ -36,8 +36,8 @@ task bwa_align {
     File fastq_r2 
 
     String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
-    Int machine_mem_mb = 8250
-    Int cpu = 1
+    Int machine_mem_mb = 32000
+    Int cpu = 16
     Int disk = ceil(size(reference_bundle) * 10 + size(fastq_r1) * 2 + size(fastq_r2) *2) + 10
     Int preemptible = 3
   }
@@ -47,7 +47,7 @@ task bwa_align {
 
     tar --no-same-owner -xvf ~{reference_bundle}
 
-    /usr/gitc/bwa mem -Y -t 16 ref/nCoV-2019.reference.fasta ~{fastq_r1} ~{fastq_r2} | samtools sort -@ 2 -m 8G - | samtools view -bh > ~{output_aligned_bam_filename}
+    /usr/gitc/bwa mem -Y -t ~{cpu} ref/nCoV-2019.reference.fasta ~{fastq_r1} ~{fastq_r2} | samtools sort -@ 2 -m 8G - | samtools view -bh > ~{output_aligned_bam_filename}
 
     samtools index ~{output_aligned_bam_filename}
   >>>
@@ -71,7 +71,7 @@ task antenna_task {
     File orf_locations 
 
     String docker = "antenna:0.0.1"
-    Int machine_mem_mb = 8250
+    Int machine_mem_mb = 16
     Int cpu = 1
     Int disk = ceil(size(input_bam) * 10) + 10
     Int preemptible = 3
