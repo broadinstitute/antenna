@@ -70,7 +70,7 @@ task antenna_task {
     File input_bam_index
     File orf_locations 
 
-    String docker = "antenna:0.0.1"
+    String docker = "quay.io/nbarkas_1/antenna:0.0.1"
     Int machine_mem_mb = 16
     Int cpu = 1
     Int disk = ceil(size(input_bam) * 10) + 10

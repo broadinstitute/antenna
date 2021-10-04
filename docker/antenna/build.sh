@@ -8,4 +8,4 @@ if [ -z $tag ]; then
     exit 1
 fi
 
-docker build -t antenna:$tag .
+docker build -t quay.io/nbarkas_1/antenna:$tag .
