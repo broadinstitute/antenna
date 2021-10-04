@@ -7,7 +7,7 @@ task bam_to_fastq {
     String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
     Int machine_mem_mb = 8250
     Int cpu = 1
-    Int disk = ceil(size(input_bam, "Gi") * 2) + 1
+    Int disk = ceil(size(input_bam, "Gi") * 10) + 10
     Int preemptible = 3
   }
   String picard_exec = "/usr/gitc/picard.jar"
@@ -19,7 +19,7 @@ task bam_to_fastq {
   runtime {
     docker: docker
     memory: "~{machine_mem_mb} MiB"
-    disks: "local-disk ${disk} HDD"
+    disks: "local-disk ~{disk} HDD"
     cpu: cpu
     preemptible: preemptible
   }
