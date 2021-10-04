@@ -4,18 +4,17 @@ task bam_to_fastq {
   input {
     File input_bam
 
-    # TODO: look into docker for picard
-    String docker = ""
+    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
     Int machine_mem_mb = 8250
     Int cpu = 1
     Int disk = ceil(size(input_bam, "Gi") * 2) + 1
     Int preemptible = 3
   }
-  String picard_exec = "picard.jar"
+  String picard_exec = "/usr/gitc/picard.jar"
   String output_fastq_1_filename = "output_1.fq"
   String output_fastq_2_filename = "output_2.fq"
   command <<<
-    java -jar ~{picard_exec} I=~{input_bam} FASTQ=~{output_fastq_1_filename} FASTQ2=~{output_fastq_2_filename} 
+    java -jar ~{picard_exec} SamToFastq I=~{input_bam} FASTQ=~{output_fastq_1_filename} SECOND_END_FASTQ=~{output_fastq_2_filename} 
   >>>
   runtime {
     docker: docker
@@ -36,20 +35,20 @@ task bwa_align {
     File fastq_r1
     File fastq_r2 
 
-    String docker = ""
+    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
     Int machine_mem_mb = 8250
-    Int cput = 1
+    Int cpu = 1
     Int disk = ceil(size(reference_bundle) * 10 + size(fastq_r1) * 2 + size(fastq_r2) *2) + 10
     Int preemptible = 3
   }
   String output_aligned_bam_filename = "aligned.bam"
   command <<<
-    #TODO: copy this evweryweret
     set -euo pipefail
 
-    # TODO: fix bundle untar and fastq
-    tar -xvzf ~{reference_bundle}
-    bwa mem -Y -t 16 ~{reference_bundle}/reference.fasta ~{fastq_r1} ~{fastq_r2} | samtools sort -@ 2 -m 8G - | samtools view -bh > ~{output_aligned_bam_filename}
+    tar --no-same-owner -xvf ~{reference_bundle}
+
+    /usr/gitc/bwa mem -Y -t 16 ref/nCoV-2019.reference.fasta ~{fastq_r1} ~{fastq_r2} | samtools sort -@ 2 -m 8G - | samtools view -bh > ~{output_aligned_bam_filename}
+
     samtools index ~{output_aligned_bam_filename}
   >>>
   runtime {
@@ -65,26 +64,27 @@ task bwa_align {
   }
 }
 
-task antenna {
+task antenna_task {
   input {
     File input_bam
     File input_bam_index
     File orf_locations 
 
-    String docker = ""
+    String docker = "antenna:0.0.1"
     Int machine_mem_mb = 8250
     Int cpu = 1
     Int disk = ceil(size(input_bam) * 10) + 10
     Int preemptible = 3
   }
+  String antenna_exec = "/root/tools/antenna.py"
   String output_counts_filename = "counts.csv"
   command<<<
-    ./antenna.py --bam ~{input_bam} --output-counts ~{output_counts_filename} --orf-bed ~{orf_locations}
+    ~{antenna_exec} --bam ~{input_bam} --output-counts ~{output_counts_filename} --orf-bed ~{orf_locations}
   >>>
   runtime {
     docker: docker
-    memory: "~{machine_meme_mb} MiB"
-    disks: "local-disk {disk} HDD"
+    memory: "~{machine_mem_mb} MiB"
+    disks: "local-disk ~{disk} HDD"
     cpu: cpu
     preemptible: preemptible
   }
@@ -100,7 +100,7 @@ workflow antenna {
          File orf_locations
     }
 
-    String pipeline_version = "antenna_v0.0.1"
+    String version = "antenna_v0.0.1"
 
     call bam_to_fastq {
       input:
@@ -109,21 +109,21 @@ workflow antenna {
 
     call bwa_align {
       input:
-        reference_bundle = reference_bundle
-        fastq_r1 = bam_to_fastq.fastq_r1
-        fastq_r2 = bam_to_fastq.fastq_r2
+        reference_bundle = ref_bundle,
+        fastq_r1 = bam_to_fastq.fastq1,
+        fastq_r2 = bam_to_fastq.fastq2
     }
 
-    call antenna {
+    call antenna_task {
       input:
-        input_bam = bwa_align.output_aligned_bam
-        input_bam_index = bwa_align.output_aligned_bam_index
+        input_bam = bwa_align.output_aligned_bam,
+        input_bam_index = bwa_align.output_aligned_bam_index,
         orf_locations = orf_locations
     }
 
    output {
-      File output_counts = antenna.output_counts
-      String pipeline_version = pipeline_version
+      File output_counts = antenna_task.counts
+      String pipeline_version = "~{version}"
    }
 }
 
