@@ -38,7 +38,7 @@ task bwa_align {
     String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
     Int machine_mem_mb = 32000
     Int cpu = 16
-    Int disk = ceil(size(reference_bundle) * 10 + size(fastq_r1) * 2 + size(fastq_r2) *2) + 10
+    Int disk = ceil(size(reference_bundle, "Gi") * 2 + size(fastq_r1, "Gi") * 2 + size(fastq_r2, "Gi") *2) + 10
     Int preemptible = 3
   }
   String output_aligned_bam_filename = "aligned.bam"
@@ -73,7 +73,7 @@ task antenna_task {
     String docker = "quay.io/nbarkas_1/antenna:0.0.1"
     Int machine_mem_mb = 16
     Int cpu = 1
-    Int disk = ceil(size(input_bam) * 10) + 10
+    Int disk = ceil(size(input_bam, "Gi") * 10) + 10
     Int preemptible = 3
   }
   String antenna_exec = "/root/tools/antenna.py"
