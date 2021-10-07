@@ -12,7 +12,7 @@ class ClassifiedRead():
         self.sgRNA = sgRNA
         self.orf = orf
         self.pos = read.pos
-        self.read = read.to_string()
+#        self.read = read.to_string()
         
 def get_mapped_reads(bam):
     # use get_index_statistics
