@@ -9,17 +9,19 @@ import argparse
 from Bio.Seq import Seq
 from Bio.pairwise2 import format_alignment
 import logging
+from collections import defaultdict
 
 
 class ClassifiedRead:
     def __init__(
-        self, sgRNA: bool, orf: str, read: pysam.AlignedRead, orientation: int
+        self, sgRNA: bool, orf: str, read: pysam.AlignedRead, motif_orientation: int
     ):
         self.sgRNA = sgRNA
         self.orf = orf
         self.pos = read.pos
-        self.orientation = orientation
-        self.read = read
+        self.motif_orientation = motif_orientation
+        self.read_orientation = 'reverse' if read.is_reverse else 'forward'
+        self.first_in_pair = 'r1' if read.is_read1 else 'r2'
 
 
 def get_mapped_reads(bam):
@@ -41,15 +43,57 @@ def get_coverage(start, end, inbamfile):
     return np.median(coverage)
 
 
+def check_trs_alignment(bases_clipped, TRS_sequence, score_cutoff):
+    alignments = pairwise2.align.localms(
+        bases_clipped, TRS_sequence, 2, -2, -20, -0.1, one_alignment_only=True
+    )
+    return alignments[0].score
+
+
+def count_reads(reads):
+    # Count
+    logging.debug("Counting reads...")
+
+    orfs = defaultdict(int)
+
+    for id, pair in reads.items():
+        logging.debug(f"Processing read query set {id} with {len(pair)} reads")
+        if len(pair) == 2:
+            # Process pair of reads
+            left_read = min(pair, key=lambda x: x.pos)
+            right_read = max(pair, key=lambda x: x.pos)
+            logging.debug(f"left_read orf: {left_read.orf} sgRNA: {left_read.sgRNA}")
+            logging.debug(f"right_read orf: {right_read.orf} sgRNA: {right_read.sgRNA}")
+            if left_read.sgRNA:
+                orfs[(left_read.orf, left_read.read_orientation, left_read.first_in_pair, left_read.motif_orientation)] += 1
+        elif len(pair) == 1:
+            # Process a single read
+            read = pair[0]
+            logging.debug(f"read orf: {read.orf} sgRNA: {read.orf}")
+            if read.sgRNA:
+                orfs[(read.orf, read.read_orientation, read.first_in_pair, read.motif_orientation)] += 1
+        else:
+            # Abnormal condition
+            logging.error(f"Read identifier {id} with {len(pair)} reads")
+
+    return orfs
+
+
 def run_antenna(
     orf_bed_filename, inbam_filename, TRS_sequence="AACCAACTTTCGATCTCTTGTAGATCTGTTCTC"
 ):
     TRS_sequence = Seq(TRS_sequence)
     TRS_sequence_rc = TRS_sequence.reverse_complement()
     TRS_sequence_c = TRS_sequence.complement()
+    TRS_sequence_r = TRS_sequence.reverse_complement().complement()
+
+    logging.debug(f"TRS {TRS_sequence}")
+    logging.debug(f"TRS RC: {TRS_sequence_rc}")
+    logging.debug(f"TRS C: {TRS_sequence_c}")
+    logging.debug(f"TRS R: {TRS_sequence_r}")
 
     orf_bed_object = BedTool(orf_bed_filename)
-    reads = {}
+    reads = defaultdict(list)
 
     with pysam.AlignmentFile(inbam_filename, "rb", require_index=True) as inbamfile:
         # Process Reads
@@ -76,38 +120,41 @@ def run_antenna(
                         # Get the clipped base pairs
                         bases_clipped = read.seq[0 : n_clipped + 3]
 
-                        # Perform local alignment
-                        alignments = pairwise2.align.localms(
-                            bases_clipped,
-                            TRS_sequence,
-                            2,
-                            -2,
-                            -20,
-                            -0.1,
-                            one_alignment_only=True,
-                        )
-                        if alignments[0].score >= score_cutoff:
+                        # Check for alignment in all possible orientations
+                        if (
+                            check_trs_alignment(
+                                bases_clipped, TRS_sequence, score_cutoff
+                            )
+                            >= score_cutoff
+                        ):
                             subgenomic_read = True
                             orientation = 1
-
-                        # Reverse complement alignment
-                        alignments_rc = pairwise2.align.localms(
-                            bases_clipped,
-                            TRS_sequence_rc,
-                            2,
-                            -2,
-                            -20,
-                            -0.1,
-                            one_alignment_only=True,
-                        )
-                        if alignments_rc[0].score >= score_cutoff:
+                        elif (
+                            check_trs_alignment(
+                                bases_clipped, TRS_sequence_rc, score_cutoff
+                            )
+                            >= score_cutoff
+                        ):
                             subgenomic_read = True
                             orientation = 2
+                        elif (
+                            check_trs_alignment(
+                                bases_clipped, TRS_sequence_r, score_cutoff
+                            )
+                            >= score_cutoff
+                        ):
+                            subgenomic_read = True
+                            orientation = 3
+                        elif (
+                            check_trs_alignment(
+                                bases_clipped, TRS_sequence_c, score_cutoff
+                            )
+                            >= score_cutoff
+                        ):
+                            subgenomic_read = True
+                            orientation = 4
 
                         if subgenomic_read:
-                            if read.query_name not in reads:
-                                reads[read.query_name] = []
-
                             # Find ORF
                             read_orf = None
                             for row in orf_bed_object:
@@ -115,54 +162,21 @@ def run_antenna(
                                     read_orf = row.name
 
                             if read_orf == None:
-                                if subgenomic_read:
-                                    read_orf = "novel_" + str(read.reference_start)
+                                read_orf = "novel_" + str(read.reference_start)
 
                             reads[read.query_name].append(
                                 ClassifiedRead(
                                     sgRNA=subgenomic_read,
                                     orf=read_orf,
                                     read=read,
-                                    orientation=orientation,
+                                    motif_orientation=orientation,
                                 )
                             )
 
-        # Count
-        logging.debug("Counting reads...")
-        orfs = dict()
-        for id, pair in reads.items():
-            logging.debug(f"Processing read query set {id} with {len(pair)} reads")
-
-            if len(pair) == 2:
-                # Process pair of reads
-                left_read = min(pair, key=lambda x: x.pos)
-                right_read = max(pair, key=lambda x: x.pos)
-                logging.debug(
-                    f"left_read orf: {left_read.orf} sgRNA: {left_read.sgRNA}"
-                )
-                logging.debug(
-                    f"right_read orf: {right_read.orf} sgRNA: {right_read.sgRNA}"
-                )
-                if left_read.sgRNA:
-                    if left_read.orf not in orfs:
-                        orfs[left_read.orf] = [left_read.read.query_name]
-                    else:
-                        orfs[left_read.orf].append(left_read.read.query_name)
-            elif len(pair) == 1:
-                # Process a single read
-                read = pair[0]
-                logging.debug(f'read orf: {read.orf} sgRNA: {read.orf}')
-                if read.sgRNA:
-                    if read.orf not in orfs:
-                        orfs[read.orf] = [read.read.query_name]
-                    else:
-                        orfs[read.orf].append(read.read.query_name)
-            else:
-                # Abnormal condition
-                logging.error(f'Read identifier {id} with {len(pair)} reads')
+        orfs = count_reads(reads)
 
         # Get coverage of different orfs
-        orf_coverage = {}
+        orf_coverage = defaultdict(int)
         for row in orf_bed_object:
             orf_coverage[row.name] = get_coverage(row.start, row.end, inbamfile)
 
@@ -174,12 +188,12 @@ def save_output(count_data, output_filename):
     orf_coverage = count_data["orf_coverage"]
 
     with open(output_filename, "w") as output_file:
-        output_file.write(",".join(["orf", "sgRNA counts", "coverage", "\n"]))
-        for orf in orfs:
-            if "novel" not in orf:
-                output_file.write(
-                    ",".join([orf, str(len(orfs[orf])), str(orf_coverage[orf]), "\n"])
-                )
+        output_file.write(
+            ",".join(["orf", "orientation", "sgRNA counts", "coverage", "\n"])
+        )
+        for orf, read_orientation, first_in_pair, motif_orientation in orfs:
+            count = orfs[(orf, read_orientation, first_in_pair, motif_orientation)]
+            output_file.write(",".join([orf, read_orientation, str(first_in_pair), str(motif_orientation), str(count), "\n"]))
 
 
 def main():
