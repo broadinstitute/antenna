@@ -14,6 +14,7 @@ from collections import defaultdict
 # CONSTS
 BAM_CSOFT_CLIP = 4
 
+
 class ClassifiedRead:
     """Class representing a read that has been classified"""
 
@@ -53,7 +54,7 @@ def check_trs_alignment(bases_clipped, TRS_sequence):
     alignments = pairwise2.align.localms(
         bases_clipped, TRS_sequence, 2, -2, -20, -0.1, one_alignment_only=True
     )
-    return alignments[0].score if len(alignments) else 0
+    return alignments[0].score if len(alignments) > 0 else 0
 
 
 def check_alignment_factory(TRS_sequence):
@@ -143,6 +144,7 @@ def run_antenna(
     score_cutoff=50,
     n_clipped_cutoff=6,
     n_clipped_overhang=3,
+    process_3prime_clipped=False,
 ):
     """The main entry point for the antenna algorithm"""
 
@@ -164,45 +166,17 @@ def run_antenna(
                 or read.is_supplementary
                 or read.is_secondary
             ):
+                if __debug__:
+                    logging.debug("Skipping read")
                 continue
 
             cigar = read.cigartuples
+
             if cigar[0][0] == BAM_CSOFT_CLIP:
                 n_clipped = cigar[0][1]
                 if n_clipped > n_clipped_cutoff:
-                    # Get the clipped base pairs
-                    bases_clipped = read.seq[0 : n_clipped + n_clipped_overhang]
+                    bases_clipped = read.seq[0 : (n_clipped + n_clipped_overhang)]
 
-                    subgenomic_read, orientation = check_alignment(
-                        bases_clipped, score_cutoff
-                    )
-
-                    if subgenomic_read:
-                        # Find ORF
-                        read_orf = None
-                        for row in orf_bed_object:
-                            if row.end >= read.reference_start >= row.start:
-                                read_orf = row.name
-
-                            if read_orf == None:
-                                read_orf = "novel_" + str(read.reference_start)
-
-                            reads[read.query_name].append(
-                                ClassifiedRead(
-                                    sgRNA=subgenomic_read,
-                                    orf=read_orf,
-                                    read=read,
-                                    motif_orientation=orientation,
-                                )
-                            )
-
-            # Process 3' clipped reads
-            if not subgenomic_read and cigar[-1][0] == BAM_CSOFT_CLIP:
-                n_clipped = cigar[-1][1]
-                if n_clipped > n_clipped_cutoff:
-                    read_length = read.template_length
-                    bases_clipped = read.seq[ read_length-n_clipped-n_clipped_overhang : read_length]
-                    
                     subgenomic_read, orientation = check_alignment(
                         bases_clipped, score_cutoff
                     )
@@ -213,19 +187,48 @@ def run_antenna(
                             if row.end >= read.reference_start >= row.start:
                                 read_orf = row.name
 
-                            if read_orf == None:
-                                read_orf = "novel_" + str(read.reference_start)
+                        if read_orf == None:
+                            read_orf = "novel_" + str(read.reference_start)
 
-                            reads[read.query_name].append(
-                                ClassifiedRead(
-                                    sgRNA=subgenomic_read,
-                                    orf=read_orf,
-                                    read=read,
-                                    motif_orientation=orientation,
-                                )
+                        reads[read.query_name].append(
+                            ClassifiedRead(
+                                sgRNA=subgenomic_read,
+                                orf=read_orf,
+                                read=read,
+                                motif_orientation=orientation,
                             )
+                        )
 
+            if process_3prime_clipped:
+                if (not subgenomic_read) and cigar[-1][0] == BAM_CSOFT_CLIP:
+                    n_clipped = cigar[-1][1]
+                    if n_clipped > n_clipped_cutoff:
+                        read_length = read.template_length
+                        bases_clipped = read.seq[
+                            read_length - n_clipped - n_clipped_overhang : read_length
+                        ]
 
+                        subgenomic_read, orientation = check_alignment(
+                            bases_clipped, score_cutoff
+                        )
+
+                        if subgenomic_read:
+                            read_orf = None
+                            for row in orf_bed_object:
+                                if row.end >= read.reference_start >= row.start:
+                                    read_orf = row.name
+
+                                if read_orf == None:
+                                    read_orf = "novel_" + str(read.reference_start)
+
+                                reads[read.query_name].append(
+                                    ClassifiedRead(
+                                        sgRNA=subgenomic_read,
+                                        orf=read_orf,
+                                        read=read,
+                                        motif_orientation=orientation,
+                                    )
+                                )
 
         orfs = count_reads(reads)
 
