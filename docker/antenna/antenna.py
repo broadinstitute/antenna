@@ -144,7 +144,7 @@ def run_antenna(
     score_cutoff=50,
     n_clipped_cutoff=6,
     n_clipped_overhang=3,
-    process_3prime_clipped=True
+    process_3prime_clipped=True,
 ):
     """The main entry point for the antenna algorithm"""
 
@@ -245,7 +245,16 @@ def save_output(orfs, output_filename):
 
     with open(output_filename, "w") as output_file:
         output_file.write(
-            ",".join(["orf", "read_orientation", "first_in_pair", "motif_orientation", "sgRNA counts", "\n"])
+            ",".join(
+                [
+                    "orf",
+                    "read_orientation",
+                    "first_in_pair",
+                    "motif_orientation",
+                    "sgRNA counts",
+                    "\n",
+                ]
+            )
         )
         for orf, read_orientation, first_in_pair, motif_orientation in orfs:
             count = orfs[(orf, read_orientation, first_in_pair, motif_orientation)]
