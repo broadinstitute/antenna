@@ -242,11 +242,6 @@ def run_antenna(
 
         orfs = count_reads(reads)
 
-    #        # Get coverage of different orfs
-    #        orf_coverage = defaultdict(int)
-    #        for row in orf_bed_object:
-    #            orf_coverage[row.name] = get_coverage(row.start, row.end, inbamfile)
-
     return orfs
 
 
