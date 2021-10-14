@@ -70,7 +70,7 @@ task antenna_task {
     File input_bam_index
     File orf_locations 
 
-    String docker = "quay.io/nbarkas_1/antenna:0.0.2"
+    String docker = "quay.io/nbarkas_1/antenna:0.0.4"
     Int machine_mem_mb = 32000
     Int cpu = 1
     Int disk = ceil(size(input_bam, "Gi") * 10) + 10
@@ -100,7 +100,7 @@ workflow antenna {
          File orf_locations
     }
 
-    String version = "antenna_v0.0.1"
+    String version = "antenna_v0.0.4"
 
     call bam_to_fastq {
       input:
