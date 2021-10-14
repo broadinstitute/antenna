@@ -58,6 +58,7 @@ def check_trs_alignment(bases_clipped, TRS_sequence):
 
 
 def check_alignment_factory(TRS_sequence):
+    """ Function factory for checking alignment of TRS sequence in different orientations"""
     TRS_sequence = Seq(TRS_sequence)
     TRS_sequence_rc = TRS_sequence.reverse_complement()
     TRS_sequence_c = TRS_sequence.complement()
@@ -200,36 +201,39 @@ def run_antenna(
                             )
                         )
 
-            if process_3prime_clipped:
-                if (not subgenomic_read) and cigar[-1][0] == BAM_CSOFT_CLIP:
-                    n_clipped = cigar[-1][1]
-                    if n_clipped > n_clipped_cutoff:
-                        read_length = read.template_length
-                        bases_clipped = read.seq[
-                            read_length - n_clipped - n_clipped_overhang : read_length
-                        ]
+            if (
+                process_3prime_clipped
+                and not subgenomic_read
+                and cigar[-1][0] == BAM_CSOFT_CLIP
+            ):
+                n_clipped = cigar[-1][1]
+                if n_clipped > n_clipped_cutoff:
+                    read_length = read.template_length
+                    bases_clipped = read.seq[
+                        read_length - n_clipped - n_clipped_overhang : read_length
+                    ]
 
-                        subgenomic_read, orientation = check_alignment(
-                            bases_clipped, score_cutoff
-                        )
+                    subgenomic_read, orientation = check_alignment(
+                        bases_clipped, score_cutoff
+                    )
 
-                        if subgenomic_read:
-                            read_orf = None
-                            for row in orf_bed_object:
-                                if row.end >= read.reference_start >= row.start:
-                                    read_orf = row.name
+                    if subgenomic_read:
+                        read_orf = None
+                        for row in orf_bed_object:
+                            if row.end >= read.reference_start >= row.start:
+                                read_orf = row.name
 
-                                if read_orf == None:
-                                    read_orf = "novel_" + str(read.reference_start)
+                            if read_orf == None:
+                                read_orf = "novel_" + str(read.reference_start)
 
-                                reads[read.query_name].append(
-                                    ClassifiedRead(
-                                        sgRNA=subgenomic_read,
-                                        orf=read_orf,
-                                        read=read,
-                                        motif_orientation=orientation,
-                                    )
+                            reads[read.query_name].append(
+                                ClassifiedRead(
+                                    sgRNA=subgenomic_read,
+                                    orf=read_orf,
+                                    read=read,
+                                    motif_orientation=orientation,
                                 )
+                            )
 
         orfs = count_reads(reads)
 
