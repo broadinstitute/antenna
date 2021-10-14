@@ -11,8 +11,12 @@ from Bio.pairwise2 import format_alignment
 import logging
 from collections import defaultdict
 
+# CONSTS
+BAM_CSOFT_CLIP = 4
 
 class ClassifiedRead:
+    """Class representing a read that has been classified"""
+
     def __init__(
         self, sgRNA: bool, orf: str, read: pysam.AlignedRead, motif_orientation: int
     ):
@@ -20,12 +24,12 @@ class ClassifiedRead:
         self.orf = orf
         self.pos = read.pos
         self.motif_orientation = motif_orientation
-        self.read_orientation = 'reverse' if read.is_reverse else 'forward'
-        self.first_in_pair = 'r1' if read.is_read1 else 'r2'
+        self.read_orientation = "reverse" if read.is_reverse else "forward"
+        self.first_in_pair = "r1" if read.is_read1 else "r2"
 
 
 def get_mapped_reads(bam):
-    # use get_index_statistics
+    """Get total mapped reads from the bam file index"""
     mapped_reads = (
         int(pysam.flagstat(bam).split("\n")[4].split(" ")[0])
         - int(pysam.flagstat(bam).split("\n")[2].split(" ")[0])
@@ -35,6 +39,7 @@ def get_mapped_reads(bam):
 
 
 def get_coverage(start, end, inbamfile):
+    """Get coverage in a specified region of a bam file"""
     coverage = []
     if start < 0:
         start = 1
@@ -43,54 +48,105 @@ def get_coverage(start, end, inbamfile):
     return np.median(coverage)
 
 
-def check_trs_alignment(bases_clipped, TRS_sequence, score_cutoff):
+def check_trs_alignment(bases_clipped, TRS_sequence):
+    """Get the alignment of the TRS against the clipped region"""
     alignments = pairwise2.align.localms(
         bases_clipped, TRS_sequence, 2, -2, -20, -0.1, one_alignment_only=True
     )
-    return alignments[0].score
+    return alignments[0].score if len(alignments) else 0
 
 
-def count_reads(reads):
-    # Count
-    logging.debug("Counting reads...")
-
-    orfs = defaultdict(int)
-
-    for id, pair in reads.items():
-        logging.debug(f"Processing read query set {id} with {len(pair)} reads")
-        if len(pair) == 2:
-            # Process pair of reads
-            left_read = min(pair, key=lambda x: x.pos)
-            right_read = max(pair, key=lambda x: x.pos)
-            logging.debug(f"left_read orf: {left_read.orf} sgRNA: {left_read.sgRNA}")
-            logging.debug(f"right_read orf: {right_read.orf} sgRNA: {right_read.sgRNA}")
-            if left_read.sgRNA:
-                orfs[(left_read.orf, left_read.read_orientation, left_read.first_in_pair, left_read.motif_orientation)] += 1
-        elif len(pair) == 1:
-            # Process a single read
-            read = pair[0]
-            logging.debug(f"read orf: {read.orf} sgRNA: {read.orf}")
-            if read.sgRNA:
-                orfs[(read.orf, read.read_orientation, read.first_in_pair, read.motif_orientation)] += 1
-        else:
-            # Abnormal condition
-            logging.error(f"Read identifier {id} with {len(pair)} reads")
-
-    return orfs
-
-
-def run_antenna(
-    orf_bed_filename, inbam_filename, TRS_sequence="AACCAACTTTCGATCTCTTGTAGATCTGTTCTC"
-):
+def check_alignment_factory(TRS_sequence):
     TRS_sequence = Seq(TRS_sequence)
     TRS_sequence_rc = TRS_sequence.reverse_complement()
     TRS_sequence_c = TRS_sequence.complement()
     TRS_sequence_r = TRS_sequence.reverse_complement().complement()
 
-    logging.debug(f"TRS {TRS_sequence}")
-    logging.debug(f"TRS RC: {TRS_sequence_rc}")
-    logging.debug(f"TRS C: {TRS_sequence_c}")
-    logging.debug(f"TRS R: {TRS_sequence_r}")
+    if __debug__:
+        logging.debug(f"TRS {TRS_sequence}")
+        logging.debug(f"TRS RC: {TRS_sequence_rc}")
+        logging.debug(f"TRS C: {TRS_sequence_c}")
+        logging.debug(f"TRS R: {TRS_sequence_r}")
+
+    def check_alignment(bases_clipped, score_cutoff):
+        subgenomic_read = False
+        orientation = None
+
+        if check_trs_alignment(bases_clipped, TRS_sequence) >= score_cutoff:
+            subgenomic_read = True
+            orientation = 1
+        elif check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
+            subgenomic_read = True
+            orientation = 2
+        elif check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
+            subgenomic_read = True
+            orientation = 3
+        elif check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
+            subgenomic_read = True
+            orientation = 4
+        return (subgenomic_read, orientation)
+
+    return check_alignment
+
+
+def count_reads(reads):
+    """Convert reads into ORF counts"""
+    if __debug__:
+        logging.debug("Counting reads...")
+
+    orfs = defaultdict(int)
+
+    for id, pair in reads.items():
+        if __debug__:
+            logging.debug(f"Processing read query set {id} with {len(pair)} reads")
+        if len(pair) == 2:
+            # Process pair of reads
+            left_read = min(pair, key=lambda x: x.pos)
+            right_read = max(pair, key=lambda x: x.pos)
+            if __debug__:
+                logging.debug(
+                    f"left_read orf: {left_read.orf} sgRNA: {left_read.sgRNA}"
+                )
+                logging.debug(
+                    f"right_read orf: {right_read.orf} sgRNA: {right_read.sgRNA}"
+                )
+            if left_read.sgRNA:
+                orfs[
+                    (
+                        left_read.orf,
+                        left_read.read_orientation,
+                        left_read.first_in_pair,
+                        left_read.motif_orientation,
+                    )
+                ] += 1
+        else:
+            # Process a single read
+            read = pair[0]
+            if __debug__:
+                logging.debug(f"read orf: {read.orf} sgRNA: {read.orf}")
+            if read.sgRNA:
+                orfs[
+                    (
+                        read.orf,
+                        read.read_orientation,
+                        read.first_in_pair,
+                        read.motif_orientation,
+                    )
+                ] += 1
+    return orfs
+
+
+def run_antenna(
+    orf_bed_filename,
+    inbam_filename,
+    TRS_sequence,
+    score_cutoff=50,
+    n_clipped_cutoff=6,
+    n_clipped_overhang=3,
+):
+    """The main entry point for the antenna algorithm"""
+
+    check_alignment = check_alignment_factory(TRS_sequence)
 
     orf_bed_object = BedTool(orf_bed_filename)
     reads = defaultdict(list)
@@ -109,57 +165,24 @@ def run_antenna(
                 or read.is_secondary
             ):
                 continue
-            else:
-                cigar = read.cigartuples
-                if cigar[0][0] == 4:
-                    # read is softclippled
-                    n_clipped = cigar[0][1]
-                    if n_clipped > 6:
-                        score_cutoff = 50
 
-                        # Get the clipped base pairs
-                        bases_clipped = read.seq[0 : n_clipped + 3]
+            cigar = read.cigartuples
+            if cigar[0][0] == BAM_CSOFT_CLIP:
+                n_clipped = cigar[0][1]
+                if n_clipped > n_clipped_cutoff:
+                    # Get the clipped base pairs
+                    bases_clipped = read.seq[0 : n_clipped + n_clipped_overhang]
 
-                        # Check for alignment in all possible orientations
-                        if (
-                            check_trs_alignment(
-                                bases_clipped, TRS_sequence, score_cutoff
-                            )
-                            >= score_cutoff
-                        ):
-                            subgenomic_read = True
-                            orientation = 1
-                        elif (
-                            check_trs_alignment(
-                                bases_clipped, TRS_sequence_rc, score_cutoff
-                            )
-                            >= score_cutoff
-                        ):
-                            subgenomic_read = True
-                            orientation = 2
-                        elif (
-                            check_trs_alignment(
-                                bases_clipped, TRS_sequence_r, score_cutoff
-                            )
-                            >= score_cutoff
-                        ):
-                            subgenomic_read = True
-                            orientation = 3
-                        elif (
-                            check_trs_alignment(
-                                bases_clipped, TRS_sequence_c, score_cutoff
-                            )
-                            >= score_cutoff
-                        ):
-                            subgenomic_read = True
-                            orientation = 4
+                    subgenomic_read, orientation = check_alignment(
+                        bases_clipped, score_cutoff
+                    )
 
-                        if subgenomic_read:
-                            # Find ORF
-                            read_orf = None
-                            for row in orf_bed_object:
-                                if row.end >= read.reference_start >= row.start:
-                                    read_orf = row.name
+                    if subgenomic_read:
+                        # Find ORF
+                        read_orf = None
+                        for row in orf_bed_object:
+                            if row.end >= read.reference_start >= row.start:
+                                read_orf = row.name
 
                             if read_orf == None:
                                 read_orf = "novel_" + str(read.reference_start)
@@ -173,19 +196,49 @@ def run_antenna(
                                 )
                             )
 
+            # Process 3' clipped reads
+            if not subgenomic_read and cigar[-1][0] == BAM_CSOFT_CLIP:
+                n_clipped = cigar[-1][1]
+                if n_clipped > n_clipped_cutoff:
+                    read_length = read.template_length
+                    bases_clipped = read.seq[ read_length-n_clipped-n_clipped_overhang : read_length]
+                    
+                    subgenomic_read, orientation = check_alignment(
+                        bases_clipped, score_cutoff
+                    )
+
+                    if subgenomic_read:
+                        read_orf = None
+                        for row in orf_bed_object:
+                            if row.end >= read.reference_start >= row.start:
+                                read_orf = row.name
+
+                            if read_orf == None:
+                                read_orf = "novel_" + str(read.reference_start)
+
+                            reads[read.query_name].append(
+                                ClassifiedRead(
+                                    sgRNA=subgenomic_read,
+                                    orf=read_orf,
+                                    read=read,
+                                    motif_orientation=orientation,
+                                )
+                            )
+
+
+
         orfs = count_reads(reads)
 
-        # Get coverage of different orfs
-        orf_coverage = defaultdict(int)
-        for row in orf_bed_object:
-            orf_coverage[row.name] = get_coverage(row.start, row.end, inbamfile)
+    #        # Get coverage of different orfs
+    #        orf_coverage = defaultdict(int)
+    #        for row in orf_bed_object:
+    #            orf_coverage[row.name] = get_coverage(row.start, row.end, inbamfile)
 
-    return {"orf_coverage": orf_coverage, "orfs": orfs}
+    return orfs
 
 
-def save_output(count_data, output_filename):
-    orfs = count_data["orfs"]
-    orf_coverage = count_data["orf_coverage"]
+def save_output(orfs, output_filename):
+    """Save the sgRNA counts as csv"""
 
     with open(output_filename, "w") as output_file:
         output_file.write(
@@ -193,7 +246,18 @@ def save_output(count_data, output_filename):
         )
         for orf, read_orientation, first_in_pair, motif_orientation in orfs:
             count = orfs[(orf, read_orientation, first_in_pair, motif_orientation)]
-            output_file.write(",".join([orf, read_orientation, str(first_in_pair), str(motif_orientation), str(count), "\n"]))
+            output_file.write(
+                ",".join(
+                    [
+                        orf,
+                        read_orientation,
+                        str(first_in_pair),
+                        str(motif_orientation),
+                        str(count),
+                        "\n",
+                    ]
+                )
+            )
 
 
 def main():
@@ -204,12 +268,22 @@ def main():
         "--orf-bed", help="bed file with orf starting positions", required=True
     )
     argparser.add_argument("--progress", help="display progress bar")
+    argparser.add_argument(
+        "--trs-sequence",
+        help="TRS sequence to search",
+        default="AACCAACTTTCGATCTCTTGTAGATCTGTTCTC",
+    )
 
     args = argparser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG)
+    if __debug__:
+        logging.basicConfig(level=logging.DEBUG)
 
-    count_data = run_antenna(orf_bed_filename=args.orf_bed, inbam_filename=args.bam)
+    count_data = run_antenna(
+        orf_bed_filename=args.orf_bed,
+        inbam_filename=args.bam,
+        TRS_sequence=args.trs_sequence,
+    )
     save_output(count_data, output_filename=args.output_counts)
 
 
