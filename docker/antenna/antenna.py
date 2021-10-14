@@ -69,22 +69,23 @@ def check_alignment_factory(TRS_sequence):
         logging.debug(f"TRS C: {TRS_sequence_c}")
         logging.debug(f"TRS R: {TRS_sequence_r}")
 
-    def check_alignment(bases_clipped, score_cutoff):
+    def check_alignment(bases_clipped, score_cutoff, check_all_orientations=False):
         subgenomic_read = False
         orientation = None
 
         if check_trs_alignment(bases_clipped, TRS_sequence) >= score_cutoff:
             subgenomic_read = True
             orientation = 1
-        elif check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
-            subgenomic_read = True
-            orientation = 2
-        elif check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
-            subgenomic_read = True
-            orientation = 3
-        elif check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
-            subgenomic_read = True
-            orientation = 4
+        elif check_all_orientations:
+            if check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
+                subgenomic_read = True
+                orientation = 2
+            elif check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
+                subgenomic_read = True
+                orientation = 3
+            elif check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
+                subgenomic_read = True
+                orientation = 4
         return (subgenomic_read, orientation)
 
     return check_alignment
