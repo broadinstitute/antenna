@@ -29,6 +29,17 @@ class ClassifiedRead:
         self.first_in_pair = "r1" if read.is_read1 else "r2"
 
 
+def assign_read_to_orf(read, orf_bed_object):
+    """Assign a read to an ORF"""
+    read_orf = None
+    for row in orf_bed_object:
+        if row.end >= read.reference_start >= row.start:
+            read_orf = row.name
+        if read_orf == None:
+            read_orf = "novel_" + str(read.reference_start)
+    return read_orf
+
+
 def get_mapped_reads(bam):
     """Get total mapped reads from the bam file index"""
     mapped_reads = (
@@ -147,6 +158,7 @@ def run_antenna(
     n_clipped_cutoff=6,
     n_clipped_overhang=3,
     process_3prime_clipped=True,
+    check_all_orientations=True,
 ):
     """The main entry point for the antenna algorithm"""
 
@@ -180,17 +192,14 @@ def run_antenna(
                     bases_clipped = read.seq[0 : (n_clipped + n_clipped_overhang)]
 
                     subgenomic_read, orientation = check_alignment(
-                        bases_clipped, score_cutoff
+                        bases_clipped,
+                        score_cutoff,
+                        check_all_orientations=check_all_orientations,
                     )
 
                     if subgenomic_read:
-                        read_orf = None
-                        for row in orf_bed_object:
-                            if row.end >= read.reference_start >= row.start:
-                                read_orf = row.name
 
-                        if read_orf == None:
-                            read_orf = "novel_" + str(read.reference_start)
+                        read_orf = assign_read_to_orf(read, orf_bed_object)
 
                         reads[read.query_name].append(
                             ClassifiedRead(
@@ -214,26 +223,22 @@ def run_antenna(
                     ]
 
                     subgenomic_read, orientation = check_alignment(
-                        bases_clipped, score_cutoff
+                        bases_clipped,
+                        score_cutoff,
+                        check_all_orientations=check_all_orientations,
                     )
 
                     if subgenomic_read:
-                        read_orf = None
-                        for row in orf_bed_object:
-                            if row.end >= read.reference_start >= row.start:
-                                read_orf = row.name
 
-                            if read_orf == None:
-                                read_orf = "novel_" + str(read.reference_start)
-
-                            reads[read.query_name].append(
-                                ClassifiedRead(
-                                    sgRNA=subgenomic_read,
-                                    orf=read_orf,
-                                    read=read,
-                                    motif_orientation=orientation,
-                                )
+                        read_orf = assign_read_to_orf(read, orf_bed_object)
+                        reads[read.query_name].append(
+                            ClassifiedRead(
+                                sgRNA=subgenomic_read,
+                                orf=read_orf,
+                                read=read,
+                                motif_orientation=orientation,
                             )
+                        )
 
         orfs = count_reads(reads)
 
@@ -290,6 +295,12 @@ def main():
         help="TRS sequence to search",
         default="AACCAACTTTCGATCTCTTGTAGATCTGTTCTC",
     )
+    argparser.add_argument(
+        "--check-all-orientations",
+        default=False,
+        action='store_true',
+        help="Check for TRS motif in all possible orientations",
+    )
 
     args = argparser.parse_args()
 
@@ -300,6 +311,7 @@ def main():
         orf_bed_filename=args.orf_bed,
         inbam_filename=args.bam,
         TRS_sequence=args.trs_sequence,
+        check_all_orientations=args.check_all_orientations,
     )
     save_output(count_data, output_filename=args.output_counts)
 
