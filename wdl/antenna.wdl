@@ -29,6 +29,36 @@ task bam_to_fastq {
   }
 }
 
+task count_bam_reads {
+  input {
+    File input_bam
+
+    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
+    Int machine_mem_mb = 8250
+    Int cpu = 1
+    Int disk = ceil(size(input_bam, "Gi") * 10) + 10
+    Int preemptible = 3
+  }
+
+  String counts_filename = "counts.txt"
+
+  command <<<
+    samtools view -c ~{input_bam} > ~{counts_filename}
+  >>>
+
+  runtime {
+    docker: docker
+    memory: "~{machine_mem_mb} MiB"
+    disks: "local-disk ~{disk} HDD"
+    cpu: cpu
+    preemptible: preemptible
+  }
+
+  output {
+    Int count = read_int(counts_filename)
+  }
+}
+
 task bwa_align {
   input {
     File reference_bundle
@@ -102,6 +132,11 @@ workflow antenna {
 
     String version = "antenna_v0.0.4"
 
+    call count_bam_reads as input_count {
+      input:
+        input_bam = input_bam
+    }
+
     call bam_to_fastq {
       input:
         input_bam = input_bam
@@ -114,6 +149,11 @@ workflow antenna {
         fastq_r2 = bam_to_fastq.fastq2
     }
 
+    call count_bam_reads as output_count {
+      input:
+        input_bam = bwa_align.output_aligned_bam
+    }
+
     call antenna_task {
       input:
         input_bam = bwa_align.output_aligned_bam,
@@ -122,7 +162,10 @@ workflow antenna {
     }
 
    output {
+      Int input_read_count = input_count.count
+      Int output_read_count = output_count.count
       File output_counts = antenna_task.counts
+      File aligned_bam = bwa_align.output_aligned_bam
       String pipeline_version = "~{version}"
    }
 }
