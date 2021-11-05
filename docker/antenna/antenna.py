@@ -284,7 +284,7 @@ def main():
     argparser.add_argument(
         "--orf-bed", help="bed file with orf starting positions", required=True
     )
-    argparser.add_argument("--progress", help="display progress bar")
+    argparser.add_argument("--progress", help="display progress bar", default=False, action="store_true")
     argparser.add_argument(
         "--trs-sequence",
         help="TRS sequence to search",
@@ -296,6 +296,12 @@ def main():
         action='store_true',
         help="Check for TRS motif in all possible orientations",
     )
+    argparser.add_argument(
+            "--score-cutoff",
+            help="Score cutoff",
+            default=50,
+            type=int,
+            )   
 
     args = argparser.parse_args()
 
@@ -307,6 +313,7 @@ def main():
         inbam_filename=args.bam,
         TRS_sequence=args.trs_sequence,
         check_all_orientations=args.check_all_orientations,
+        score_cutoff = args.score_cutoff
     )
     save_output(count_data, output_filename=args.output_counts)
 
