@@ -14,6 +14,17 @@ from collections import defaultdict
 # CONSTS
 BAM_CSOFT_CLIP = 4
 
+# Masks for output annotation
+TRS_3_PRIME_RC = 0x1 << 7
+TRS_3_PRIME_C = 0x1 << 6 
+TRS_3_PRIME_R = 0x1 << 5 
+TRS_3_PRIME_O = 0x1 << 4 
+
+TRS_5_PRIME_RC = 0x1 << 3 
+TRS_5_PRIME_C = 0x1 << 2
+TRS_5_PRIME_R = 0x1 << 1
+TRS_5_PRIME_O = 0x1 << 0 
+
 
 def check_trs_alignment(bases_clipped, TRS_sequence):
     """Get the alignment of the TRS against the clipped region"""
@@ -38,21 +49,21 @@ def check_alignment_factory(TRS_sequence):
 
     def check_alignment(bases_clipped, score_cutoff, check_all_orientations=False):
         subgenomic_read = False
-        orientation = None
+        orientation = 0x0
 
         if check_trs_alignment(bases_clipped, TRS_sequence) >= score_cutoff:
             subgenomic_read = True
-            orientation = 1
-        elif check_all_orientations:
-            if check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
-                subgenomic_read = True
-                orientation = 2
-            elif check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
-                subgenomic_read = True
-                orientation = 3
-            elif check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
-                subgenomic_read = True
-                orientation = 4
+            orientation |= TRS_5_PRIME_O 
+        if check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
+            subgenomic_read = True
+            orientation |= TRS_5_PRIME_RC 
+        if check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
+            subgenomic_read = True
+            orientation |= TRS_5_PRIME_R
+        if check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
+            subgenomic_read = True
+            orientation |= TRS_5_PRIME_C
+
         return (subgenomic_read, orientation)
 
     return check_alignment
@@ -124,6 +135,8 @@ def run_antenna(
             total_input_reads = inbamfile.mapped + inbamfile.unmapped
 
             for read in tqdm.tqdm(inbamfile, total=total_input_reads, smoothing=0):
+                trs_found = False 
+                orientation_flag = 0x0
 
                 if (
                     read.seq is None or
@@ -146,7 +159,8 @@ def run_antenna(
                             check_all_orientations=check_all_orientations,
                         )
                         if subgenomic_read:
-                            read.tags += [('TS', orientation)]
+                            trs_found = True
+                            orientation_flag = orientation
 
                 if cigar[-1][0] == BAM_CSOFT_CLIP:
                     n_clipped = cigar[-1][1]
@@ -160,7 +174,12 @@ def run_antenna(
                             check_all_orientations=check_all_orientations,
                         )
                         if subgenomic_read:
-                            read.tags += [('TS', orientation)]
+                            trs_found = True
+                            orientation_flag |= ( orientation << 4)
+
+
+                if trs_found:
+                    read.tags +=  [('TS',orientation_flag)]
 
                 outbamfile.write(read)
 
