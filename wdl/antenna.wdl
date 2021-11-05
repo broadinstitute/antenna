@@ -32,6 +32,7 @@ task bam_to_fastq {
 task count_bam_reads {
   input {
     File input_bam
+    String flags = ""
 
     String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
     Int machine_mem_mb = 8250
@@ -43,7 +44,7 @@ task count_bam_reads {
   String counts_filename = "counts.txt"
 
   command <<<
-    samtools view -c ~{input_bam} > ~{counts_filename}
+    samtools view ~{flags} -c ~{input_bam} > ~{counts_filename}
   >>>
 
   runtime {
@@ -151,7 +152,8 @@ workflow antenna {
 
     call count_bam_reads as output_count {
       input:
-        input_bam = bwa_align.output_aligned_bam
+        input_bam = bwa_align.output_aligned_bam,
+	flags = " -F 260 "
     }
 
     call antenna_task {
