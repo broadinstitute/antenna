@@ -74,6 +74,7 @@ class bed_intervals:
     def find_overlapping_interval(self, pos):
         """Find the index of the overlapping interval"""
         ## This is very inefficient, for a small bed file it doesn't matter
+        ## The list is already sorted for binary search
         for (i, cur_interval) in enumerate(self.intervals):
             if cur_interval.contains(pos):
                 return i
@@ -92,7 +93,10 @@ def count_sgRNA(bamfilename, bedfile, sgRNA_bam_tag_name="TS"):
     trs_intervals = bed_intervals()
     trs_intervals.load_bed(bedfile)
 
-    def count_read(read, trs_intervals, sgRNA_bam_tag_name):
+    def count_read(read, trs_intervals, sgRNA_bam_tag_name, double_count=True):
+        """Count each read, note that we allow double counting here"""
+
+        # TODO: examine shorter version of this function -- consider speed
         read_interval = trs_intervals.get_overlapping_interval(read.reference_start)
         if read_interval is not None:
             if read.has_tag(sgRNA_bam_tag_name):
@@ -101,37 +105,69 @@ def count_sgRNA(bamfilename, bedfile, sgRNA_bam_tag_name="TS"):
                 if read.is_read1:
                     if trs_tag_info & TRS_5_PRIME_O:
                         read_interval["sg_count_read1_5p_o"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_R:
                         read_interval["sg_count_read1_5p_r"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_C:
                         read_interval["sg_count_read1_5p_c"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_RC:
                         read_interval["sg_count_read1_5p_rc"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_O:
                         read_interval["sg_count_read1_3p_o"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_R:
                         read_interval["sg_count_read1_3p_r"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_C:
                         read_interval["sg_count_read1_3p_c"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_RC:
                         read_interval["sg_count_read1_3p_rc"] += 1
+                        if not double_count:
+                            return
                 if read.is_read2:
                     if trs_tag_info & TRS_5_PRIME_O:
                         read_interval["sg_count_read2_5p_o"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_R:
                         read_interval["sg_count_read2_5p_r"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_C:
                         read_interval["sg_count_read2_5p_c"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_5_PRIME_RC:
                         read_interval["sg_count_read2_5p_rc"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_O:
                         read_interval["sg_count_read2_3p_o"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_R:
                         read_interval["sg_count_read2_3p_r"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_C:
                         read_interval["sg_count_read2_3p_c"] += 1
+                        if not double_count:
+                            return
                     if trs_tag_info & TRS_3_PRIME_RC:
                         read_interval["sg_count_read2_3p_rc"] += 1
+                        if not double_count:
+                            return
             else:
                 read_interval["non_sg_count"] += 1
 
@@ -281,3 +317,23 @@ def simple_count_sgRNA(
             "non_sg_counts": non_sg_counts,
         }
     )
+
+
+def main():
+    argparser = argparse.ArgumentParser("antena_count_reads")
+    argparser.add_argument("--bam", help="input bam file", required=True)
+    argparser.add_argument("--bed", help="bed file with intervals", required=True)
+    argparser.add_argument("--outcsv", help="output csv file", required=True)
+    argparser.add_argument(
+        "--progress", help="display progress bar", action="store_true", default=False
+    )
+    args = argparser.parse_args()
+
+    # Main execution flow
+    trs_intervals = count_sgRNA(args.bam, args.bed)
+    intervals_counts = summarize_trs_intervals(trs_intervals)
+    intervals_counts.to_csv(args.outcsv)
+
+
+if __name__ == "__main__":
+    main()
