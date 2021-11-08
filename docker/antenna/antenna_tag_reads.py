@@ -16,14 +16,14 @@ BAM_CSOFT_CLIP = 4
 
 # Masks for output annotation
 TRS_3_PRIME_RC = 0x1 << 7
-TRS_3_PRIME_C = 0x1 << 6 
-TRS_3_PRIME_R = 0x1 << 5 
-TRS_3_PRIME_O = 0x1 << 4 
+TRS_3_PRIME_C = 0x1 << 6
+TRS_3_PRIME_R = 0x1 << 5
+TRS_3_PRIME_O = 0x1 << 4
 
-TRS_5_PRIME_RC = 0x1 << 3 
+TRS_5_PRIME_RC = 0x1 << 3
 TRS_5_PRIME_C = 0x1 << 2
 TRS_5_PRIME_R = 0x1 << 1
-TRS_5_PRIME_O = 0x1 << 0 
+TRS_5_PRIME_O = 0x1 << 0
 
 
 def check_trs_alignment(bases_clipped, TRS_sequence):
@@ -54,10 +54,10 @@ def check_alignment_factory(TRS_sequence):
 
         if check_trs_alignment(bases_clipped, TRS_sequence) >= score_cutoff:
             subgenomic_read = True
-            orientation |= TRS_5_PRIME_O 
+            orientation |= TRS_5_PRIME_O
         if check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
             subgenomic_read = True
-            orientation |= TRS_5_PRIME_RC 
+            orientation |= TRS_5_PRIME_RC
         if check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
             subgenomic_read = True
             orientation |= TRS_5_PRIME_R
@@ -132,19 +132,18 @@ def run_antenna(
     check_alignment = check_alignment_factory(TRS_sequence)
 
     with pysam.AlignmentFile(inbam_filename, "rb", require_index=True) as inbamfile:
-        with pysam.AlignmentFile(outbam_filename, "wb", template=inbamfile) as outbamfile:
+        with pysam.AlignmentFile(
+            outbam_filename, "wb", template=inbamfile
+        ) as outbamfile:
             total_input_reads = inbamfile.mapped + inbamfile.unmapped
 
             for read in tqdm.tqdm(inbamfile, total=total_input_reads, smoothing=0):
-                trs_found = False 
+                trs_found = False
                 orientation_flag = 0x0
 
-                if (
-                    read.seq is None or
-                    read.is_unmapped
-                    ):
-                        outbamfile.write(read)
-                        continue
+                if read.seq is None or read.is_unmapped:
+                    outbamfile.write(read)
+                    continue
 
                 read_length = read.template_length
                 cigar = read.cigartuples
@@ -178,11 +177,10 @@ def run_antenna(
                         if subgenomic_read:
                             trs_found = True
                             # The 3' flags are just shifted 5' flags
-                            orientation_flag |= ( orientation << 4)
-
+                            orientation_flag |= orientation << 4
 
                 if trs_found:
-                    read.tags +=  [('TS',orientation_flag)]
+                    read.tags += [("TS", orientation_flag)]
 
                 outbamfile.write(read)
 
