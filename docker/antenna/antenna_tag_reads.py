@@ -28,6 +28,7 @@ TRS_5_PRIME_O = 0x1 << 0
 
 def check_trs_alignment(bases_clipped, TRS_sequence):
     """Get the alignment of the TRS against the clipped region"""
+    # TODO: Review these penatlies
     alignments = pairwise2.align.localms(
         bases_clipped, TRS_sequence, 2, -2, -20, -0.1, one_alignment_only=True
     )
@@ -142,6 +143,7 @@ def run_antenna(
                     read.seq is None or
                     read.is_unmapped
                     ):
+                        outbamfile.write(read)
                         continue
 
                 read_length = read.template_length
@@ -175,6 +177,7 @@ def run_antenna(
                         )
                         if subgenomic_read:
                             trs_found = True
+                            # The 3' flags are just shifted 5' flags
                             orientation_flag |= ( orientation << 4)
 
 
