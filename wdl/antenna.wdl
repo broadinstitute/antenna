@@ -95,23 +95,25 @@ task bwa_align {
   }
 }
 
-task antenna_task {
+task antenna_tag {
   input {
-    File input_bam
-    File input_bam_index
-    File orf_locations 
-
-    String docker = "quay.io/nbarkas_1/antenna:0.0.4"
-    Int machine_mem_mb = 32000
-    Int cpu = 1
-    Int disk = ceil(size(input_bam, "Gi") * 10) + 10
-    Int preemptible = 3
+      File inbam
+      File outbam_name
+      Int score_cutoff = 50
+      
+      String docker = "quay.io/nbarkas_1/antenna:0.0.4"
+      Int machine_mem_mb = 8192
+      Int cpu = 1
+      Int disk = ceil(size(inbam, "Gi") * 4) + 10
+      Int preemptible = 3
   }
-  String antenna_exec = "/root/tools/antenna.py"
-  String output_counts_filename = "counts.csv"
+
+  String antenna_tag_exec = "/root/tools/antenna_tag_reads.py"
+  
   command<<<
-    ~{antenna_exec} --bam ~{input_bam} --output-counts ~{output_counts_filename} --orf-bed ~{orf_locations}
+     ~{antenna_tag_exec} --bam ~{inbam} --outbam ~{outbam_name} --check-all-orientations --score-cutoff ~{score_cutoff}
   >>>
+  
   runtime {
     docker: docker
     memory: "~{machine_mem_mb} MiB"
@@ -119,10 +121,43 @@ task antenna_task {
     cpu: cpu
     preemptible: preemptible
   }
+  
   output {
-    File counts = "~{output_counts_filename}"
+    File outbam = "~{outbam_name}"
   }
-}    
+}
+
+task antenna_count {
+  input {
+    File inbam
+    File bedfile
+    String outcsv_filename
+    
+    String docker = "quay.io/nbarkas_1/antenna:0.0.4"
+    Int machine_mem_mb = 8192
+    Int cpu = 1
+    Int disk = ceil(size(inbam, "Gi") * 4) + 10
+    Int preemptible = 3
+  }
+  
+  String antenna_count_exec = "/root/tools/antenna_tag_reads.py"
+  
+  command<<<
+    ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename}
+  >>>
+  
+  runtime {
+    docker: docker
+    memory: "~{machine_mem_mb} MiB"
+    disks: "local-disk ~{disk} HDD"
+    cpu: cpu
+    preemptible: preemptible
+  }
+  
+output {
+    File outcsv = "~{outcsv_filename}"
+  } 
+}
 
 workflow antenna {
     input {
@@ -153,20 +188,27 @@ workflow antenna {
     call count_bam_reads as output_count {
       input:
         input_bam = bwa_align.output_aligned_bam,
-	flags = " -F 260 "
+        flags = " -F 260 "
     }
-
-    call antenna_task {
+    
+    call antenna_tag {
       input:
-        input_bam = bwa_align.output_aligned_bam,
-        input_bam_index = bwa_align.output_aligned_bam_index,
-        orf_locations = orf_locations
+        inbam = bwa_align.output_aligned_bam,
+        outbam_name = "output.bam",
+        score_cutoff = 20    
+    }
+    
+    call antenna_count {
+      input:
+         inbam = antenna_tag.outbam,
+         bedfile = orf_locations,
+         outcsv_filename = "counts.csv"
     }
 
    output {
       Int input_read_count = input_count.count
       Int output_read_count = output_count.count
-      File output_counts = antenna_task.counts
+      File output_counts = antenna_count.outcsv
       File aligned_bam = bwa_align.output_aligned_bam
       String pipeline_version = "~{version}"
    }
