@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
+
 import pysam
 import tqdm
 import csv
 import functools
 import collections
 import pandas as pd
+import argparse
 
 # Masks for output annotation
 TRS_3_PRIME_RC = 0x1 << 7
