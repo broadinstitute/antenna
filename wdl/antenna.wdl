@@ -98,10 +98,11 @@ task bwa_align {
 task antenna_tag {
   input {
       File inbam
-      File outbam_name
+      File inbam_index
+      String outbam_name
       Int score_cutoff = 50
       
-      String docker = "quay.io/nbarkas_1/antenna:0.0.4"
+      String docker = "quay.io/nbarkas_1/antenna:0.0.5"
       Int machine_mem_mb = 8192
       Int cpu = 1
       Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -133,7 +134,7 @@ task antenna_count {
     File bedfile
     String outcsv_filename
     
-    String docker = "quay.io/nbarkas_1/antenna:0.0.4"
+    String docker = "quay.io/nbarkas_1/antenna:0.0.5"
     Int machine_mem_mb = 8192
     Int cpu = 1
     Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -154,7 +155,7 @@ task antenna_count {
     preemptible: preemptible
   }
   
-output {
+  output {
     File outcsv = "~{outcsv_filename}"
   } 
 }
@@ -194,6 +195,7 @@ workflow antenna {
     call antenna_tag {
       input:
         inbam = bwa_align.output_aligned_bam,
+        inbam_index = bwa_align.output_aligned_bam_index,
         outbam_name = "output.bam",
         score_cutoff = 20    
     }
