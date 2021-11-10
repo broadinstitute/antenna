@@ -128,9 +128,45 @@ task antenna_tag {
   }
 }
 
+task bam_sort_index {
+  input {
+    File bamfile
+
+    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
+    Int machine_mem_mb = 32000
+    Int cpu = 4
+    Int disk = ceil(size(bamfile, "Gi") * 2 + 10)
+    Int preemptible = 3
+  }
+
+  String output_aligned_bam_filename = "aligned.bam"
+
+  command <<<
+    set -euo pipefail
+
+    samtools sort -@ 4 -m 6G ~{bamfile} > ~{output_aligned_bam_filename}
+
+    samtools index ~{output_aligned_bam_filename}
+  >>>
+
+  runtime {
+    docker: docker
+    memory: "~{machine_mem_mb} MiB"
+    disks:  "local-disk ~{disk} HDD"
+    cpu: cpu
+    preemptible: preemptible
+  }
+
+  output {
+    File output_aligned_bam = "~{output_aligned_bam_filename}"
+    File output_aligned_bam_index = "~{output_aligned_bam_filename}.bai"
+  }
+}
+
 task antenna_count {
   input {
     File inbam
+    File inbamindex
     File bedfile
     String outcsv_filename
     
@@ -141,10 +177,10 @@ task antenna_count {
     Int preemptible = 3
   }
   
-  String antenna_count_exec = "/root/tools/antenna_tag_reads.py"
-  
+  String antenna_count_exec = "/root/tools/antenna_count_reads.py"
+
   command<<<
-    ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename}
+    ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename} 
   >>>
   
   runtime {
@@ -199,10 +235,16 @@ workflow antenna {
         outbam_name = "output.bam",
         score_cutoff = 20    
     }
+
+    call bam_sort_index {
+      input:
+        bamfile = antenna_tag.outbam
+    }
     
     call antenna_count {
       input:
-         inbam = antenna_tag.outbam,
+         inbam = bam_sort_index.output_aligned_bam,
+         inbamindex = bam_sort_index.output_aligned_bam_index,
          bedfile = orf_locations,
          outcsv_filename = "counts.csv"
     }
