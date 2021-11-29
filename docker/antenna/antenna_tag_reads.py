@@ -48,24 +48,30 @@ def check_alignment_factory(TRS_sequence):
         logging.debug(f"TRS C: {TRS_sequence_c}")
         logging.debug(f"TRS R: {TRS_sequence_r}")
 
-    def check_alignment(bases_clipped, score_cutoff, check_all_orientations=False):
+    def check_alignment(bases_clipped, score_cutoff):
         subgenomic_read = False
         orientation = 0x0
+        score = 0
 
-        if check_trs_alignment(bases_clipped, TRS_sequence) >= score_cutoff:
+        o_score = check_trs_alignment(bases_clipped, TRS_sequence)
+        rc_score = check_trs_alignment(bases_clipped, TRS_sequence_rc)
+        r_score = check_trs_alignment(bases_clipped, TRS_sequence_r)
+        c_score = check_trs_alignment(bases_clipped, TRS_sequence_c)
+
+        if o_score >= score_cutoff:
             subgenomic_read = True
             orientation |= TRS_5_PRIME_O
-        if check_trs_alignment(bases_clipped, TRS_sequence_rc) >= score_cutoff:
+        elif rc_score >= score_cutoff:
             subgenomic_read = True
             orientation |= TRS_5_PRIME_RC
-        if check_trs_alignment(bases_clipped, TRS_sequence_r) >= score_cutoff:
+        elif r_score >= score_cutoff:
             subgenomic_read = True
             orientation |= TRS_5_PRIME_R
-        if check_trs_alignment(bases_clipped, TRS_sequence_c) >= score_cutoff:
+        elif c_score >= score_cutoff:
             subgenomic_read = True
             orientation |= TRS_5_PRIME_C
 
-        return (subgenomic_read, orientation)
+        return (subgenomic_read, orientation, o_score, rc_score, r_score, c_score)
 
     return check_alignment
 
@@ -125,7 +131,6 @@ def run_antenna(
     n_clipped_cutoff=6,
     n_clipped_overhang=3,
     process_3prime_clipped=True,
-    check_all_orientations=True,
 ):
     """The main entry point for the antenna algorithm"""
 
@@ -154,11 +159,14 @@ def run_antenna(
                         five_prime_bases_clipped = read.seq[
                             0 : (n_clipped + n_clipped_overhang)
                         ]
-                        subgenomic_read, orientation = check_alignment(
-                            five_prime_bases_clipped,
-                            score_cutoff,
-                            check_all_orientations=check_all_orientations,
-                        )
+                        (
+                            subgenomic_read,
+                            orientation,
+                            p5_o_score,
+                            p5_rc_score,
+                            p5_r_score,
+                            p5_c_score,
+                        ) = check_alignment(five_prime_bases_clipped, score_cutoff,)
                         if subgenomic_read:
                             trs_found = True
                             orientation_flag = orientation
@@ -169,11 +177,14 @@ def run_antenna(
                         five_prime_bases_clipped = read.seq[
                             read_length - n_clipped - n_clipped_overhang : read_length
                         ]
-                        subgenomic_read, orientation = check_alignment(
-                            five_prime_bases_clipped,
-                            score_cutoff,
-                            check_all_orientations=check_all_orientations,
-                        )
+                        (
+                            subgenomic_read,
+                            orientation,
+                            p3_o_score,
+                            p3_rc_score,
+                            p3_r_score,
+                            p3_c_score,
+                        ) = check_alignment(five_prime_bases_clipped, score_cutoff,)
                         if subgenomic_read:
                             trs_found = True
                             # The 3' flags are just shifted 5' flags
@@ -181,6 +192,10 @@ def run_antenna(
 
                 if trs_found:
                     read.tags += [("TS", orientation_flag)]
+
+                TO_string = f'{p5_o_score:.0f},{p5_rc_score:.0f},{p5_r_score:.0f},{p5_c_score:.0f},{p3_o_score:.0f},{p3_rc_score:.0f},{p3_r_score:.0f},{p3_c_score:.0f}'
+
+                read.tags += [("TO", TO_string)]
 
                 outbamfile.write(read)
 
@@ -216,7 +231,6 @@ def main():
         inbam_filename=args.bam,
         outbam_filename=args.outbam,
         TRS_sequence=args.trs_sequence,
-        check_all_orientations=args.check_all_orientations,
         score_cutoff=args.score_cutoff,
     )
 

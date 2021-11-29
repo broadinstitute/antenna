@@ -90,6 +90,56 @@ class bed_intervals:
             return self.intervals[i]
         return None
 
+def load_sgRNA_scores(bamfilename, sgRNA_bam_score_tag_name="TO"):
+    """Load the read scores in all possible orientations from a bam file"""
+    
+    df_data = {
+        'read_name': [],
+        'is_read1': [],
+        'p5_o_score': [],
+        'p5_rc_score': [],
+        'p5_r_score': [],
+        'p5_c_score': [],
+        'p3_o_score': [],
+        'p3_rc_score': [],
+        'p3_r_score': [],
+        'p3_c_score': [],
+    }
+    
+    with pysam.AlignmentFile(bamfilename, "rb", require_index=True) as bamfile:
+        total_input_reads = bamfile.mapped + bamfile.unmapped
+        for read in tqdm.tqdm(bamfile, total=total_input_reads, smoothing=0):
+            if read.seq is None or read.is_unmapped:
+                continue
+            
+            try:
+                scores = read.get_tag(sgRNA_bam_score_tag_name)
+                
+                scores_array = scores.split(',')
+                df_data['read_name'].append(read.query_name)
+                df_data['is_read1'].append(read.is_read1) 
+                df_data['p5_o_score'].append(scores_array[0])
+                df_data['p5_rc_score'].append(scores_array[1])
+                df_data['p5_r_score'].append(scores_array[2])
+                df_data['p5_c_score'].append(scores_array[3])
+                df_data['p3_o_score'].append(scores_array[4])
+                df_data['p3_rc_score'].append(scores_array[5])
+                df_data['p3_r_score'].append(scores_array[6])
+                df_data['p3_c_score'].append(scores_array[7])
+                
+            except KeyError:
+                continue
+            
+        df =  pd.DataFrame(df_data)
+        df = df.astype({
+            'read_name': 'U', 'is_read1': 'bool', 
+            'p5_o_score': 'int32', 'p5_rc_score': 'int32', 'p5_r_score': 'int32', 'p5_c_score': 'int32',
+            'p3_o_score': 'int32', 'p3_rc_score': 'int32', 'p3_r_score': 'int32', 'p3_c_score': 'int32',
+        })
+        
+        return df
+            
+    
 
 def count_sgRNA(bamfilename, bedfile, sgRNA_bam_tag_name="TS"):
     """Count sgRNAs stratifying by orientation"""
