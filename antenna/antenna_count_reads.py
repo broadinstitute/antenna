@@ -213,15 +213,15 @@ def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
                 count_read_pair = True
                 continue  # This should only jump out of inner
 
-       ## check that I am looking at reads that point inwards and remove chimeric ones
-    
-       # consider finding insert sizes here and sd
-       # 
-       #     min(start_r1, end_r1, start_r2, end_r2)
-       #     max(start_r1, end_r1, start_r2, end_r2)
-       #     check if within range as valid pair
-       #     check if whole thing overlaps the known interval
-            
+        ## check that I am looking at reads that point inwards and remove chimeric ones
+
+        # consider finding insert sizes here and sd
+        #
+        #     min(start_r1, end_r1, start_r2, end_r2)
+        #     max(start_r1, end_r1, start_r2, end_r2)
+        #     check if within range as valid pair
+        #     check if whole thing overlaps the known interval
+
         # TODO: consider r1 orientation (that also dictates r2 orientation)
         read_interval = trs_intervals.get_overlapping_interval(
             read_pair.reference_start_r1
@@ -235,7 +235,7 @@ def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
     return trs_intervals
 
 
-def plot_read_score_dist(scores_df, max_range = 80, n_bins = 50):
+def plot_read_score_dist(scores_df, max_range=80, n_bins=50):
     """Return a plot of TRS alignment score distributions by read orientation, read type, flanking side and TRS orientation"""
 
     scores_subset = {
@@ -281,8 +281,6 @@ def plot_read_score_dist(scores_df, max_range = 80, n_bins = 50):
         sharey=True,
         constrained_layout=True,
     )
-    
-    
 
     i = 0
     for read_type in ("fd", "rv"):
@@ -294,7 +292,9 @@ def plot_read_score_dist(scores_df, max_range = 80, n_bins = 50):
                     value = scores_subset[read_order][read_type][
                         f"{flanking_side}_{orientation}_score"
                     ]
-                    axes[row_index, col_index].hist(value, log=True, range=(0,max_range), bins=n_bins)
+                    axes[row_index, col_index].hist(
+                        value, log=True, range=(0, max_range), bins=n_bins
+                    )
                     axes[row_index, col_index].set_title(
                         f"{abbr[read_type]} {abbr[read_order]} {abbr[flanking_side]} {abbr[orientation]}"
                     )
