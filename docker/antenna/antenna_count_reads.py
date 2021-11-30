@@ -308,20 +308,21 @@ def main():
     argparser = argparse.ArgumentParser("antena_count_reads")
     argparser.add_argument("--bam", help="input bam file", required=True)
     argparser.add_argument("--bed", help="bed file with intervals", required=True)
-    argparser.add_argument("--cutoff", help="score cutoff", default=50)
     argparser.add_argument("--outcsv", help="output csv file", required=True)
+    argparser.add_argument("--cutoff", help="score cutoff", default=50)
     argparser.add_argument(
         "--progress", help="display progress bar", action="store_true", default=False
     )
     args = argparser.parse_args()
 
     # Main execution flow
-    sgRNA_scores = antenna_count_reads.load_sgRNA_scores(args.bam)
-    merged_read_information = antenna_count_reads.merge_read_information(sgRNA_scores)
-    trs_intervals = antenna_count_reads.count_sgRNA(
-        mri, "../../data/orf_start.bed", args.cutoff
+    # TODO: Check bed file ok before starting the counting
+    sgRNA_scores = load_sgRNA_scores(args.bam)
+    merged_read_information = merge_read_information(sgRNA_scores)
+    trs_intervals = count_sgRNA(
+        merged_read_information, args.bed, args.cutoff
     )
-    intervals_counts = antenna_count_reads.summarize_trs_intervals(trs_intervals)
+    intervals_counts = summarize_trs_intervals(trs_intervals)
     intervals_counts.to_csv(args.outcsv)
 
 
