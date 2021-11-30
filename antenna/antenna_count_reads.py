@@ -47,8 +47,14 @@ class BedInterval:
             return True
         else:
             return False
-
-
+        
+    def overlaps(self, s, e):
+        if ((s <= self.end) & (e <= self.start)):
+            return True
+        else:
+            return False
+        
+        
 class BedIntervals:
     def __init__(self):
         self.intervals = []
@@ -66,8 +72,6 @@ class BedIntervals:
 
     def find_overlapping_interval(self, pos):
         """Find the index of the overlapping interval"""
-        ## This is very inefficient, for a small bed file it doesn't matter
-        ## The list is already sorted for binary search
         for (i, cur_interval) in enumerate(self.intervals):
             if cur_interval.contains(pos):
                 return i
@@ -79,6 +83,21 @@ class BedIntervals:
         if i is not None:
             return self.intervals[i]
         return None
+    
+    def find_overlapping_interval_range(self, start, end):
+        """Find the index of the overlapping interval by start and end"""
+        for (i, cur_interval) in enumerate(self.intervals):
+            if cur_interval.overlaps(start, end):
+                return i
+        return None
+    
+    def get_overlapping_interval_range(self, start, end):
+        """Get the overlapping interval"""
+        i = self.find_overlapping_interval_range(start, end)
+        if i is not None:
+            return self.intervals[i]
+        return None
+            
 
 
 def load_sgRNA_scores(bamfilename, sgRNA_bam_score_tag_name="TO"):
@@ -211,21 +230,16 @@ def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
         for cc in columns_to_count:
             if getattr(read_pair, cc) > cutoff:
                 count_read_pair = True
-                continue  # This should only jump out of inner
+                continue
+                
+        read_pair_start = min(read_pair.reference_start_r1, read_pair.reference_start_r2, read_pair.reference_end_r1, read_pair.reference_end_r2)
+        read_pair_end = max(read_pair.reference_start_r1, read_pair.reference_start_r2, read_pair.reference_end_r1, read_pair.reference_end_r2)
 
-        ## check that I am looking at reads that point inwards and remove chimeric ones
-
-        # consider finding insert sizes here and sd
-        #
-        #     min(start_r1, end_r1, start_r2, end_r2)
-        #     max(start_r1, end_r1, start_r2, end_r2)
-        #     check if within range as valid pair
-        #     check if whole thing overlaps the known interval
-
-        # TODO: consider r1 orientation (that also dictates r2 orientation)
-        read_interval = trs_intervals.get_overlapping_interval(
-            read_pair.reference_start_r1
+        read_interval = trs_intervals.get_overlapping_interval_range(
+            read_pair_start, 
+            read_pair_end
         )
+        
         if read_interval:
             if count_read_pair:
                 read_interval["sg_count"] += 1
