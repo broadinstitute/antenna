@@ -35,7 +35,7 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'count_reads=antenna.count_reads:main',
-            'tag_reads=antenna.tar_reads:main',     
+            'tag_reads=antenna.tag_reads:main',     
         ],
     },
     include_package_data=True,

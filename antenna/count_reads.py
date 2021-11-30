@@ -9,17 +9,6 @@ import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
 
-# Masks for output annotation
-TRS_3_PRIME_RC = 0x1 << 7
-TRS_3_PRIME_C = 0x1 << 6
-TRS_3_PRIME_R = 0x1 << 5
-TRS_3_PRIME_O = 0x1 << 4
-
-TRS_5_PRIME_RC = 0x1 << 3
-TRS_5_PRIME_C = 0x1 << 2
-TRS_5_PRIME_R = 0x1 << 1
-TRS_5_PRIME_O = 0x1 << 0
-
 
 @functools.total_ordering
 class BedInterval:
