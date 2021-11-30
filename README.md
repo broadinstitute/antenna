@@ -16,4 +16,5 @@ The docker build script uses the latest main version in github for installation.
 ```
 cd docker
 ./build [version]
+docker push quay.io/nbarkas_1/antenna:[version]
 ```
