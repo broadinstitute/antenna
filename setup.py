@@ -34,8 +34,8 @@ setuptools.setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'antenna_count_reads=antenna.count_reads:main',
-            'antenna_tag_reads=antenna.tag_reads:main',     
+            'antenna_count_reads=antenna.antenna_count_reads:main',
+            'antenna_tag_reads=antenna.antenna_tag_reads:main',     
         ],
     },
     include_package_data=True,
