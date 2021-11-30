@@ -8,6 +8,7 @@ import collections
 import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
+import os
 
 
 @functools.total_ordering
@@ -212,7 +213,7 @@ def merge_read_information(scores_df):
     return scores_read_pairs
 
 
-def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
+def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO", max_read_pair_size=500):
     """Count sgRNAs stratifying by orientation"""
     trs_intervals = BedIntervals()
     trs_intervals.load_bed(bedfile)
@@ -234,6 +235,9 @@ def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
                 
         read_pair_start = min(read_pair.reference_start_r1, read_pair.reference_start_r2, read_pair.reference_end_r1, read_pair.reference_end_r2)
         read_pair_end = max(read_pair.reference_start_r1, read_pair.reference_start_r2, read_pair.reference_end_r1, read_pair.reference_end_r2)
+        
+        if abs(read_pair_start - read_pair_end) > max_read_pair_size:
+            continue
 
         read_interval = trs_intervals.get_overlapping_interval_range(
             read_pair_start, 
@@ -324,16 +328,36 @@ def main():
     argparser.add_argument("--bed", help="bed file with intervals", required=True)
     argparser.add_argument("--outcsv", help="output csv file", required=True)
     argparser.add_argument("--cutoff", help="score cutoff", default=50)
+    argparser.add_argument("--output-read-info-table", default=None, help="name of file to output read info")
+    argparser.add_argument("--output-merged-read-info-table", default=None, action="store_true", help="name of file to output merged read info")
+    argparser.add_argument("--verbose", help="verbose output", default=False, action="store_true")
     argparser.add_argument(
         "--progress", help="display progress bar", action="store_true", default=False
     )
     args = argparser.parse_args()
 
-    # Main execution flow
-    # TODO: Check bed file ok before starting the counting
+    if not os.path.exists(args.bed):
+        sys.exit('Specified bed file does not exist')
+
+    if args.verbose:
+        print("Loading read sgRNA scores...")
     sgRNA_scores = load_sgRNA_scores(args.bam)
+    if (args.output_read_info_table is not None):
+        sgRNA_scores.to_csv(args.output_read_info_table)
+    
+    if args.verbose:
+        print("Merging read pair information...")
     merged_read_information = merge_read_information(sgRNA_scores)
+    
+    if (args.output_merged_read_info_table is not None):
+        merged_read_information.to_csv(args.output_merged_read_info_table)
+    
+    if args.verbose:
+        print("Counting sgRNA reads in intervals...")
     trs_intervals = count_sgRNA(merged_read_information, args.bed, args.cutoff)
+    
+    if args.verbose:
+        print("Summarizing TRS intervals...")
     intervals_counts = summarize_trs_intervals(trs_intervals)
     intervals_counts.to_csv(args.outcsv)
 
