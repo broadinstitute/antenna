@@ -22,7 +22,7 @@ TRS_5_PRIME_O = 0x1 << 0
 
 
 @functools.total_ordering
-class bed_interval:
+class BedInterval:
     """Class representing a bed interval"""
 
     # Note: using total_ordering has a performance penalty
@@ -35,7 +35,7 @@ class bed_interval:
         self.properties = collections.defaultdict(int)
 
     def _is_valid_operand(self, other):
-        return isinstance(other, bed_interval)
+        return isinstance(other, BedInterval)
 
     def __eq__(self, other):
         if not (self._is_valid_operand(other)):
@@ -60,7 +60,7 @@ class bed_interval:
             return False
 
 
-class bed_intervals:
+class BedIntervals:
     def __init__(self):
         self.intervals = []
 
@@ -71,7 +71,7 @@ class bed_intervals:
                 ref, start, end, name, *other = line
                 start = int(start)
                 end = int(end)
-                interval = bed_interval(ref, start, end, name)
+                interval = BedInterval(ref, start, end, name)
                 self.intervals.append(interval)
         self.intervals.sort()
 
@@ -206,7 +206,7 @@ def merge_read_information(scores_df):
 
 def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO"):
     """Count sgRNAs stratifying by orientation"""
-    trs_intervals = bed_intervals()
+    trs_intervals = BedIntervals()
     trs_intervals.load_bed(bedfile)
 
     columns_to_count = [
@@ -319,9 +319,7 @@ def main():
     # TODO: Check bed file ok before starting the counting
     sgRNA_scores = load_sgRNA_scores(args.bam)
     merged_read_information = merge_read_information(sgRNA_scores)
-    trs_intervals = count_sgRNA(
-        merged_read_information, args.bed, args.cutoff
-    )
+    trs_intervals = count_sgRNA(merged_read_information, args.bed, args.cutoff)
     intervals_counts = summarize_trs_intervals(trs_intervals)
     intervals_counts.to_csv(args.outcsv)
 
