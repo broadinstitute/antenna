@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 -O
 
 import pysam
 from Bio import pairwise2
@@ -10,7 +10,6 @@ from Bio.Seq import Seq
 from Bio.pairwise2 import format_alignment
 import logging
 from collections import defaultdict
-
 
 
 # CONSTS
@@ -125,7 +124,7 @@ def run_antenna(
 
                 read_length = read.template_length
                 cigar = read.cigartuples
-                
+
                 p5_o_score = 0
                 p5_rc_score = 0
                 p5_r_score = 0
@@ -161,8 +160,7 @@ def run_antenna(
                             p3_c_score,
                         ) = check_alignment(three_prime_bases_clipped)
 
-
-                TO_string = f'{p5_o_score:.0f},{p5_rc_score:.0f},{p5_r_score:.0f},{p5_c_score:.0f},{p3_o_score:.0f},{p3_rc_score:.0f},{p3_r_score:.0f},{p3_c_score:.0f}'
+                TO_string = f"{p5_o_score:.0f},{p5_rc_score:.0f},{p5_r_score:.0f},{p5_c_score:.0f},{p3_o_score:.0f},{p3_rc_score:.0f},{p3_r_score:.0f},{p3_c_score:.0f}"
 
                 read.tags += [("TO", TO_string)]
 
@@ -180,12 +178,6 @@ def main():
         "--trs-sequence",
         help="TRS sequence to search",
         default="AACCAACTTTCGATCTCTTGTAGATCTGTTCTC",
-    )
-    argparser.add_argument(
-        "--check-all-orientations",
-        default=False,
-        action="store_true",
-        help="Check for TRS motif in all possible orientations",
     )
 
     args = argparser.parse_args()
