@@ -17,7 +17,7 @@ install_requires = [
 
 setuptools.setup(
     name='antenna',
-    version='0.0.4',
+    version='0.0.10',
     description='A software package for identifying sgRNA reads in next-generation sequencing data',
     long_description=readme(),
     classifiers=[

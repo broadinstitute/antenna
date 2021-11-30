@@ -1,6 +1,6 @@
 #!/bin/bash
 
-tag=$1
+tag=0.0.10
 
 if [ -z $tag ]; then
     echo -e "\nYou must provide a tag"

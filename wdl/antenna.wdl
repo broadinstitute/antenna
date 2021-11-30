@@ -102,7 +102,7 @@ task antenna_tag {
       String outbam_name
       Int score_cutoff = 50
       
-      String docker = "quay.io/nbarkas_1/antenna:0.0.6"
+      String docker = "quay.io/nbarkas_1/antenna:0.0.10"
       Int machine_mem_mb = 8192
       Int cpu = 1
       Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -171,7 +171,7 @@ task antenna_count {
     String outcsv_filename
     Int cutoff = "50"
     
-    String docker = "quay.io/nbarkas_1/antenna:0.0.6"
+    String docker = "quay.io/nbarkas_1/antenna:0.0.10"
     Int machine_mem_mb = 8192
     Int cpu = 1
     Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -204,7 +204,7 @@ workflow antenna {
          File orf_locations
     }
 
-    String version = "antenna_v0.0.4"
+    String version = "antenna_v0.0.10"
 
     call count_bam_reads as input_count {
       input:
