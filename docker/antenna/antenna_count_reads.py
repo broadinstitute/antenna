@@ -7,6 +7,7 @@ import functools
 import collections
 import pandas as pd
 import argparse
+import matplotlib.pyplot as plt
 
 # Masks for output annotation
 TRS_3_PRIME_RC = 0x1 << 7
@@ -96,6 +97,7 @@ def load_sgRNA_scores(bamfilename, sgRNA_bam_score_tag_name="TO"):
     df_data = {
         'read_name': [],
         'is_read1': [],
+        'reverse': [],
         'p5_o_score': [],
         'p5_rc_score': [],
         'p5_r_score': [],
@@ -114,19 +116,20 @@ def load_sgRNA_scores(bamfilename, sgRNA_bam_score_tag_name="TO"):
             
             try:
                 scores = read.get_tag(sgRNA_bam_score_tag_name)
-                
                 scores_array = scores.split(',')
                 df_data['read_name'].append(read.query_name)
                 df_data['is_read1'].append(read.is_read1) 
+                df_data['reverse'].append(read.is_reverse)
+                
                 df_data['p5_o_score'].append(scores_array[0])
                 df_data['p5_rc_score'].append(scores_array[1])
                 df_data['p5_r_score'].append(scores_array[2])
                 df_data['p5_c_score'].append(scores_array[3])
+                
                 df_data['p3_o_score'].append(scores_array[4])
                 df_data['p3_rc_score'].append(scores_array[5])
                 df_data['p3_r_score'].append(scores_array[6])
                 df_data['p3_c_score'].append(scores_array[7])
-                
             except KeyError:
                 continue
             
@@ -386,6 +389,55 @@ def main():
     trs_intervals = count_sgRNA(args.bam, args.bed)
     intervals_counts = summarize_trs_intervals(trs_intervals)
     intervals_counts.to_csv(args.outcsv)
+    
+    
+def plot_read_score_dist(scores_df):
+    """Return a plot of TRS alignment score distributions by read orientation, read type, flanking side and TRS orientation"""
+    
+    scores_subset = {
+        'r1': {
+            'fd': scores_df[(scores_df['is_read1'] == True) & (scores_df['reverse'] == False)],
+            'rv': scores_df[(scores_df['is_read1'] == False) & (scores_df['reverse'] == False)]
+        },
+        'r2': {
+            'fd': scores_df[(scores_df['is_read1'] == True) & (scores_df['reverse'] == True)],
+            'rv': scores_df[(scores_df['is_read1'] == False) & (scores_df['reverse'] == True)]
+        }
+    }
+    
+    abbr = {
+        'fd': 'Forward',
+        'rv': 'Reverse',
+        'r1': 'R1',
+        'r2': 'R2',
+        'p5': '5\'',
+        'p3': '3\'',
+        'o': 'TRS',
+        'rc': 'RC TRS',
+        'r': 'R TRS',
+        'c': 'C TRS',
+    }
+    
+    nrows = 8
+    ncols = 4
+
+    fig, axes = plt.subplots(nrows=nrows,ncols=ncols,figsize=(10,15), sharex=True, sharey=True, constrained_layout=True)
+    
+    i=0
+    for read_type in ('fd','rv'):
+        for read_order in ('r1','r2'):
+            for flanking_side in ('p5','p3'):
+                for orientation in ('o','rc','r','c'):
+                    col_index = i//nrows
+                    row_index = i%nrows
+                    value = scores_subset[read_order][read_type][f'{flanking_side}_{orientation}_score']
+                    axes[row_index,col_index].hist(value, log=True)
+                    axes[row_index, col_index].set_title(f'{abbr[read_type]} {abbr[read_order]} {abbr[flanking_side]} {abbr[orientation]}')
+                    axes[row_index, col_index].set_xlabel('score')
+                    i+=1
+            
+    return fig
+    
 
 
 if __name__ == "__main__":

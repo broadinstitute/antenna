@@ -11,19 +11,10 @@ from Bio.pairwise2 import format_alignment
 import logging
 from collections import defaultdict
 
+
+
 # CONSTS
 BAM_CSOFT_CLIP = 4
-
-# Masks for output annotation
-TRS_3_PRIME_RC = 0x1 << 7
-TRS_3_PRIME_C = 0x1 << 6
-TRS_3_PRIME_R = 0x1 << 5
-TRS_3_PRIME_O = 0x1 << 4
-
-TRS_5_PRIME_RC = 0x1 << 3
-TRS_5_PRIME_C = 0x1 << 2
-TRS_5_PRIME_R = 0x1 << 1
-TRS_5_PRIME_O = 0x1 << 0
 
 
 def check_trs_alignment(bases_clipped, TRS_sequence):
@@ -48,30 +39,13 @@ def check_alignment_factory(TRS_sequence):
         logging.debug(f"TRS C: {TRS_sequence_c}")
         logging.debug(f"TRS R: {TRS_sequence_r}")
 
-    def check_alignment(bases_clipped, score_cutoff):
-        subgenomic_read = False
-        orientation = 0x0
-        score = 0
-
+    def check_alignment(bases_clipped):
         o_score = check_trs_alignment(bases_clipped, TRS_sequence)
         rc_score = check_trs_alignment(bases_clipped, TRS_sequence_rc)
         r_score = check_trs_alignment(bases_clipped, TRS_sequence_r)
         c_score = check_trs_alignment(bases_clipped, TRS_sequence_c)
 
-        if o_score >= score_cutoff:
-            subgenomic_read = True
-            orientation |= TRS_5_PRIME_O
-        elif rc_score >= score_cutoff:
-            subgenomic_read = True
-            orientation |= TRS_5_PRIME_RC
-        elif r_score >= score_cutoff:
-            subgenomic_read = True
-            orientation |= TRS_5_PRIME_R
-        elif c_score >= score_cutoff:
-            subgenomic_read = True
-            orientation |= TRS_5_PRIME_C
-
-        return (subgenomic_read, orientation, o_score, rc_score, r_score, c_score)
+        return (o_score, rc_score, r_score, c_score)
 
     return check_alignment
 
@@ -127,7 +101,6 @@ def run_antenna(
     inbam_filename,
     outbam_filename,
     TRS_sequence,
-    score_cutoff=50,
     n_clipped_cutoff=6,
     n_clipped_overhang=3,
     process_3prime_clipped=True,
@@ -152,6 +125,15 @@ def run_antenna(
 
                 read_length = read.template_length
                 cigar = read.cigartuples
+                
+                p5_o_score = 0
+                p5_rc_score = 0
+                p5_r_score = 0
+                p5_c_score = 0
+                p3_o_score = 0
+                p3_rc_score = 0
+                p3_r_score = 0
+                p3_c_score = 0
 
                 if cigar[0][0] == BAM_CSOFT_CLIP:
                     n_clipped = cigar[0][1]
@@ -160,38 +142,25 @@ def run_antenna(
                             0 : (n_clipped + n_clipped_overhang)
                         ]
                         (
-                            subgenomic_read,
-                            orientation,
                             p5_o_score,
                             p5_rc_score,
                             p5_r_score,
                             p5_c_score,
-                        ) = check_alignment(five_prime_bases_clipped, score_cutoff,)
-                        if subgenomic_read:
-                            trs_found = True
-                            orientation_flag = orientation
+                        ) = check_alignment(five_prime_bases_clipped)
 
                 if cigar[-1][0] == BAM_CSOFT_CLIP:
                     n_clipped = cigar[-1][1]
                     if n_clipped > n_clipped_cutoff:
-                        five_prime_bases_clipped = read.seq[
+                        three_prime_bases_clipped = read.seq[
                             read_length - n_clipped - n_clipped_overhang : read_length
                         ]
                         (
-                            subgenomic_read,
-                            orientation,
                             p3_o_score,
                             p3_rc_score,
                             p3_r_score,
                             p3_c_score,
-                        ) = check_alignment(five_prime_bases_clipped, score_cutoff,)
-                        if subgenomic_read:
-                            trs_found = True
-                            # The 3' flags are just shifted 5' flags
-                            orientation_flag |= orientation << 4
+                        ) = check_alignment(three_prime_bases_clipped)
 
-                if trs_found:
-                    read.tags += [("TS", orientation_flag)]
 
                 TO_string = f'{p5_o_score:.0f},{p5_rc_score:.0f},{p5_r_score:.0f},{p5_c_score:.0f},{p3_o_score:.0f},{p3_rc_score:.0f},{p3_r_score:.0f},{p3_c_score:.0f}'
 
@@ -218,9 +187,6 @@ def main():
         action="store_true",
         help="Check for TRS motif in all possible orientations",
     )
-    argparser.add_argument(
-        "--score-cutoff", help="Score cutoff", default=50, type=int,
-    )
 
     args = argparser.parse_args()
 
@@ -231,7 +197,6 @@ def main():
         inbam_filename=args.bam,
         outbam_filename=args.outbam,
         TRS_sequence=args.trs_sequence,
-        score_cutoff=args.score_cutoff,
     )
 
 
