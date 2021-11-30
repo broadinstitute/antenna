@@ -8,3 +8,12 @@ pip install -e antenna/
 ```
 
 # Modules
+
+
+
+# Updating docker
+The docker build script uses the latest main version in github for installation. After updating github, run:
+```
+cd docker
+./build [version]
+```
