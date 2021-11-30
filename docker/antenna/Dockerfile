@@ -4,6 +4,5 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 RUN mkdir /root/tools
-COPY antenna.py /root/tools/ 
 COPY antenna_count_reads.py /root/tools/ 
 COPY antenna_tag_reads.py /root/tools/ 

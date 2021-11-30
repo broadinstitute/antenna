@@ -102,7 +102,7 @@ task antenna_tag {
       String outbam_name
       Int score_cutoff = 50
       
-      String docker = "quay.io/nbarkas_1/antenna:0.0.5"
+      String docker = "quay.io/nbarkas_1/antenna:0.0.6"
       Int machine_mem_mb = 8192
       Int cpu = 1
       Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -169,8 +169,9 @@ task antenna_count {
     File inbamindex
     File bedfile
     String outcsv_filename
+    Int cutoff = "50"
     
-    String docker = "quay.io/nbarkas_1/antenna:0.0.5"
+    String docker = "quay.io/nbarkas_1/antenna:0.0.6"
     Int machine_mem_mb = 8192
     Int cpu = 1
     Int disk = ceil(size(inbam, "Gi") * 4) + 10
@@ -180,7 +181,7 @@ task antenna_count {
   String antenna_count_exec = "/root/tools/antenna_count_reads.py"
 
   command<<<
-    ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename} 
+    ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename} --cutoff ~{cutoff}
   >>>
   
   runtime {
