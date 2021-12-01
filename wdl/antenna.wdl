@@ -100,7 +100,6 @@ task antenna_tag {
       File inbam
       File inbam_index
       String outbam_name
-      Int score_cutoff = 50
       
       String docker = "quay.io/nbarkas_1/antenna:0.0.10"
       Int machine_mem_mb = 8192
@@ -109,10 +108,10 @@ task antenna_tag {
       Int preemptible = 3
   }
 
-  String antenna_tag_exec = "/root/tools/antenna_tag_reads.py"
+  String antenna_tag_exec = "antenna_tag_reads"
   
   command<<<
-     ~{antenna_tag_exec} --bam ~{inbam} --outbam ~{outbam_name} --check-all-orientations --score-cutoff ~{score_cutoff}
+     ~{antenna_tag_exec} --bam ~{inbam} --outbam ~{outbam_name} 
   >>>
   
   runtime {
@@ -178,7 +177,7 @@ task antenna_count {
     Int preemptible = 3
   }
   
-  String antenna_count_exec = "/root/tools/antenna_count_reads.py"
+  String antenna_count_exec = "antenna_count_reads"
 
   command<<<
     ~{antenna_count_exec} --bam ~{inbam} --bed ~{bedfile} --outcsv ~{outcsv_filename} --cutoff ~{cutoff}
@@ -233,8 +232,7 @@ workflow antenna {
       input:
         inbam = bwa_align.output_aligned_bam,
         inbam_index = bwa_align.output_aligned_bam_index,
-        outbam_name = "output.bam",
-        score_cutoff = 20    
+        outbam_name = "output.bam"
     }
 
     call bam_sort_index {

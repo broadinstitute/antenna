@@ -253,7 +253,7 @@ def count_sgRNA(merge_sg_read_info, bedfile, cutoff, sgRNA_bam_tag_name="TO", ma
     return trs_intervals
 
 
-def plot_read_score_dist(scores_df, max_range=80, n_bins=50):
+def plot_read_score_dist(scores_df, max_range=80, n_bins=50, filename = None):
     """Return a plot of TRS alignment score distributions by read orientation, read type, flanking side and TRS orientation"""
 
     scores_subset = {
@@ -318,6 +318,9 @@ def plot_read_score_dist(scores_df, max_range=80, n_bins=50):
                     )
                     axes[row_index, col_index].set_xlabel("score")
                     i += 1
+                    
+    if filename is not None:
+        fig.savefig(filename, dpi=300)
 
     return fig, axes
 
