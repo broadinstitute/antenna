@@ -202,7 +202,7 @@ task antenna_count {
     File inbamindex
     File bedfile
     String outcsv_filename
-    Int cutoff = "50"
+    Int cutoff = 30
     
     String docker = "quay.io/nbarkas_1/antenna:0.0.10"
     Int machine_mem_mb = 32000
