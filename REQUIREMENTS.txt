@@ -3,3 +3,4 @@ pandas==1.2.4
 biopython==1.79
 pybedtools==0.8.2
 tqdm==4.62.3
+matplotlib
