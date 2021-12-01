@@ -327,7 +327,7 @@ def main():
     argparser.add_argument("--bam", help="input bam file", required=True)
     argparser.add_argument("--bed", help="bed file with intervals", required=True)
     argparser.add_argument("--outcsv", help="output csv file", required=True)
-    argparser.add_argument("--cutoff", help="score cutoff", default=50)
+    argparser.add_argument("--cutoff", help="score cutoff", default=50, type=int)
     argparser.add_argument("--output-read-info-table", default=None, help="name of file to output read info")
     argparser.add_argument("--output-merged-read-info-table", default=None, action="store_true", help="name of file to output merged read info")
     argparser.add_argument("--verbose", help="verbose output", default=False, action="store_true")
