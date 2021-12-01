@@ -35,7 +35,8 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'antenna_count_reads=antenna.antenna_count_reads:main',
-            'antenna_tag_reads=antenna.antenna_tag_reads:main',     
+            'antenna_tag_reads=antenna.antenna_tag_reads:main', 
+            'antenna_generate_report=antenna.antenna_generate_report:main',
         ],
     },
     include_package_data=True,

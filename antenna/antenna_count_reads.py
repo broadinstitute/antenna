@@ -326,7 +326,7 @@ def plot_read_score_dist(scores_df, max_range=80, n_bins=50, filename = None):
 
 
 def main():
-    argparser = argparse.ArgumentParser("antena_count_reads")
+    argparser = argparse.ArgumentParser("antenna_count_reads")
     argparser.add_argument("--bam", help="input bam file", required=True)
     argparser.add_argument("--bed", help="bed file with intervals", required=True)
     argparser.add_argument("--outcsv", help="output csv file", required=True)

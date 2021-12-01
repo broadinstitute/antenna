@@ -162,12 +162,46 @@ task bam_sort_index {
   }
 }
 
+task antenna_report {
+  input {
+    File inbam
+    File inbamindex
+    
+    String out_score_distribution_filename = "score_distributions.png"
+    
+    String docker = "quay.io/nbarkas_1/antenna:0.0.10"
+    Int machine_mem_mb = 32000
+    Int cpu = 1
+    Int disk = ceil(size(inbam, "Gi") * 1.1) + 10
+    Int preemptible = 3
+  }
+  
+  String antenna_report_exec = "antenna_generate_report"
+
+  command<<<
+    ~{antenna_report_exec} --bam ~{inbam} --output-image ~{out_score_distribution_filename}
+  >>>
+  
+   runtime {
+    docker: docker
+    memory: "~{machine_mem_mb} MiB"
+    disks: "local-disk ~{disk} HDD"
+    cpu: cpu
+    preemptible: preemptible
+  }
+  
+  output {
+    File out_score_distribution = "~{out_score_distribution_filename}"
+  } 
+  
+}
+
 task antenna_count {
   input {
     File inbam
     File inbamindex
     File bedfile
-    String outcsv_filenamexs
+    String outcsv_filename
     Int cutoff = "50"
     
     String docker = "quay.io/nbarkas_1/antenna:0.0.10"
@@ -240,6 +274,12 @@ workflow antenna {
         bamfile = antenna_tag.outbam
     }
     
+    call antenna_report {
+      input:
+         inbam = bam_sort_index.output_aligned_bam,
+         inbamindex = bam_sort_index.output_aligned_bam_index
+    }
+    
     call antenna_count {
       input:
          inbam = bam_sort_index.output_aligned_bam,
@@ -253,6 +293,7 @@ workflow antenna {
       Int output_read_count = output_count.count
       File output_counts = antenna_count.outcsv
       File aligned_bam = bwa_align.output_aligned_bam
+      File distribution_report = antenna_report.out_score_distribution
       String pipeline_version = "~{version}"
    }
 }
