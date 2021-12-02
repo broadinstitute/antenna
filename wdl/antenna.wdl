@@ -105,7 +105,7 @@ task antenna_tag {
       Int machine_mem_mb = 8192
       Int cpu = 1
       Int disk = ceil(size(inbam, "Gi") * 4) + 10
-      Int preemptible = 3
+      Int preemptible = 0
   }
 
   String antenna_tag_exec = "antenna_tag_reads"
