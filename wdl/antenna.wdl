@@ -170,7 +170,7 @@ task antenna_report {
     String out_score_distribution_filename = "score_distributions.png"
     
     String docker = "quay.io/nbarkas_1/antenna:0.0.10"
-    Int machine_mem_mb = 32000
+    Int machine_mem_mb = 64000
     Int cpu = 1
     Int disk = ceil(size(inbam, "Gi") * 1.1) + 10
     Int preemptible = 3
@@ -205,7 +205,7 @@ task antenna_count {
     Int cutoff = 30
     
     String docker = "quay.io/nbarkas_1/antenna:0.0.10"
-    Int machine_mem_mb = 32000
+    Int machine_mem_mb = 64000
     Int cpu = 1
     Int disk = ceil(size(inbam, "Gi") * 4) + 10
     Int preemptible = 3
