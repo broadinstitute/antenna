@@ -278,14 +278,20 @@ workflow antenna {
 
     String version = "antenna_v0.0.10"
 
+    call bam_subsample {
+      input:
+        inputbam = input_bam,
+        pc_keep_reads = pc_keep_reads
+    }
+
     call count_bam_reads as input_count {
       input:
-        input_bam = input_bam
+        input_bam = bam_subsample.output_bam
     }
 
     call bam_to_fastq {
       input:
-        input_bam = input_bam
+        input_bam = bam_subsample.output_bam
     }
 
     call bwa_align {
@@ -293,12 +299,6 @@ workflow antenna {
         reference_bundle = ref_bundle,
         fastq_r1 = bam_to_fastq.fastq1,
         fastq_r2 = bam_to_fastq.fastq2
-    }
-
-    call bam_subsample {
-      input:
-        inputbam = bwa_align.output_aligned_bam,
-        pc_keep_reads = pc_keep_reads
     }
 
     call count_bam_reads as output_count {
@@ -309,7 +309,7 @@ workflow antenna {
     
     call antenna_tag {
       input:
-        inbam = bam_subsample.output_bam,
+        inbam = bwa_align.output_aligned_bam,
         inbam_index = bwa_align.output_aligned_bam_index,
         outbam_name = "output.bam"
     }
