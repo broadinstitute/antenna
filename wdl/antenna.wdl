@@ -338,6 +338,7 @@ workflow antenna {
       Int output_read_count = output_count.count
       File output_counts = antenna_count.outcsv
       File aligned_bam = bwa_align.output_aligned_bam
+      File tagged_bam = bam_sort_index.output_aligned_bam
       File distribution_report = antenna_report.out_score_distribution
       String pipeline_version = "~{version}"
    }
