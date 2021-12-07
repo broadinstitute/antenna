@@ -95,6 +95,44 @@ task bwa_align {
   }
 }
 
+task bam_subsample {
+  input {
+    File inputbam
+    Float pc_keep_reads
+
+    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
+    Int machine_mem_mb = 8192
+    Int cpu = 1
+    Int disk = ceil(size(inputbam, "Gi") * 2.1) + 10
+    Int preemptible = 3
+  }
+
+  String output_bam_name = "subsampled.bam"
+
+  command <<<
+    set -euo pipefail
+    if (( $(echo "~{pc_keep_reads} < 0.99" | bc -l) )) 
+    then 
+      echo Subsampling...
+      samtools view --subsample ~{pc_keep_reads} --bam ~{inputbam} > ~{output_bam_name}
+    else
+      mv ~{inputbam} ~{output_bam_name}
+    fi
+  >>>
+
+  runtime {
+    docker: docker
+    memory: "~{machine_mem_mb} MiB"
+    disks:  "local-disk ~{disk} HDD"
+    cpu: cpu
+    preemptible: preemptible
+  }
+
+  output {
+    File output_bam = "~{output_bam_name}"
+  }
+}
+
 task antenna_tag {
   input {
       File inbam
@@ -235,6 +273,7 @@ workflow antenna {
          File input_bam
          File ref_bundle
          File orf_locations
+	 Float pc_keep_reads = 1.0
     }
 
     String version = "antenna_v0.0.10"
@@ -256,6 +295,12 @@ workflow antenna {
         fastq_r2 = bam_to_fastq.fastq2
     }
 
+    call bam_subsample {
+      input:
+        inputbam = bwa_align.output_aligned_bam,
+        pc_keep_reads = pc_keep_reads
+    }
+
     call count_bam_reads as output_count {
       input:
         input_bam = bwa_align.output_aligned_bam,
@@ -264,7 +309,7 @@ workflow antenna {
     
     call antenna_tag {
       input:
-        inbam = bwa_align.output_aligned_bam,
+        inbam = bam_subsample.output_bam,
         inbam_index = bwa_align.output_aligned_bam_index,
         outbam_name = "output.bam"
     }
