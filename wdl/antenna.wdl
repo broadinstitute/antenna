@@ -100,7 +100,7 @@ task bam_subsample {
     File inputbam
     Float pc_keep_reads
 
-    String docker = "us.gcr.io/broad-gotc-prod/samtools-picard-bwa:1.0.0-0.7.15-2.23.8-1626449438"
+    String docker = "quay.io/nbarkas_1/antenna_subsample:0.0.10"
     Int machine_mem_mb = 8192
     Int cpu = 1
     Int disk = ceil(size(inputbam, "Gi") * 2.1) + 10
