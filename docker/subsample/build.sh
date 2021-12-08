@@ -8,4 +8,5 @@ if [ -z $tag ]; then
     exit 1
 fi
 
-docker build --no-cache -t quay.io/nbarkas_1/antenna_subsample:$tag .
+#docker build --no-cache -t quay.io/nbarkas_1/antenna_subsample:$tag .
+docker build -t quay.io/nbarkas_1/antenna_subsample:$tag .
