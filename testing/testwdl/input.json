@@ -1,5 +1,5 @@
 {
-  "antenna.input_bam": "/home/nbarkas/antenna/testing/test1/input/aligned.bam",
-  "antenna.ref_bundle": "/home/nbarkas/antenna/data/ref.tar",
-  "antenna.orf_locations": "/home/nbarkas/antenna/data/orf_start.bed"
+  "antenna.input_bam": "[LOCATION]/antenna/data/test_aligned.bam",
+  "antenna.ref_bundle": "[LOCATION]/antenna/data/ref.tar",
+  "antenna.orf_locations": "[LOCATION]/antenna/data/orf_start.bed"
 }
