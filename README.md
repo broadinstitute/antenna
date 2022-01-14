@@ -25,7 +25,13 @@ An example test script for the pipeline is provided under `testing/testwdl/run.s
 
 To run this example, please edit the file `testing/testwdl/input.json` and replace [LOCATION] with the download location of the repository in your system.
 
-The pipeline outputs two files. A file name
+The pipeline outputs are as follows:
+
+Output Name | Description
+--------------------------
+tagged_bam | a bam file with additional tags denoting the presence of TRS sequences in the softclipped regions
+output_counts | a summary csv file with TRS and non-TRD containing reads counts in each region
+distribution_report | a png file of plot of the distribution of sgRNA containing reads in different orientations
 
 ## Instructions for Use
 To run the pipeline on your data call the wdl with a custom `input.json` file. For example with miniwdl you would execute:
