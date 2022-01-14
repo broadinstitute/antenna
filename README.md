@@ -20,9 +20,10 @@ git clone https://github.com/broadinstitute/antenna.git
 pip install -e antenna/
 ```
 
-
 ## Demo
 An example test script for the pipeline is provided under `testing/testwdl/run.sh`. This script will execute the WDL pipeline using inputs in the input.json file.
+
+To run this example, please edit the file `testing/testwdl/input.json` and replace [LOCATION] with the download location of the repository in your system.
 
 ## Instructions for Use
 
