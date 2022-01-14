@@ -116,7 +116,7 @@ task bam_subsample {
       echo Subsampling...
       samtools view --subsample ~{pc_keep_reads} --bam ~{inputbam} > ~{output_bam_name}
     else
-      mv ~{inputbam} ~{output_bam_name}
+      cp ~{inputbam} ~{output_bam_name}
     fi
   >>>
 
